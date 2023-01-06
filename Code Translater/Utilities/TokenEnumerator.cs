@@ -6,39 +6,69 @@ using System.Text;
 
 namespace Code_Translater.Utilities
 {
-    public class TokenEnumerator
+    public unsafe class TokenEnumerator
     {
-        private Token[] Tokens;
-        private int Index = 0;
+        private Tokenizer tokenizer;
+
+        private char* PreviousPointer;
+        private Token PreviousToken;
 
         public string Value
         {
-            get => Tokens[Index].Value;
+            get => Token.Value;
         }
         public TokenType Type
         {
-            get => Tokens[Index].Type;
+            get => Token.Type;
         }
 
-        public Token Token
-        {
-            get => Tokens[Index];
-        }
+        public Token Token { get; private set; }
 
-        public TokenEnumerator(IEnumerable<Token> tokens)
+        public TokenEnumerator(Tokenizer tokenizer)
         {
-            this.Tokens = tokens.ToArray();
+            this.tokenizer = tokenizer;
+
+            this.PreviousPointer = tokenizer.Pointer;
+            Token = tokenizer.ReadToken();
         }
 
         public bool MoveNext()
         {
-            Index++;
-            return Index < Tokens.Length;
+            if(Type == TokenType.END_OF_FILE)
+            {
+                return false;
+            }
+
+            this.PreviousPointer = tokenizer.Pointer;
+            this.PreviousToken = Token;
+
+            Token = tokenizer.ReadToken();
+            return true;
         }
 
         public void MovePrevious()
         {
-            Index--;
+            if(this.tokenizer.Pointer == this.PreviousPointer)
+            {
+                throw new Exception("Cannot MovePrevious() multiple times");
+            }
+
+            this.Token = PreviousToken;
+            this.tokenizer.Pointer = PreviousPointer;
+        }
+
+        public bool ReadRestOfLineRaw()
+        {
+            if (Type == TokenType.END_OF_FILE)
+            {
+                return false;
+            }
+
+            this.PreviousPointer = tokenizer.Pointer;
+            this.PreviousToken = Token;
+
+            Token = tokenizer.ReadRestOfLineRaw();
+            return true;
         }
     }
 }

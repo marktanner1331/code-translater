@@ -22,15 +22,15 @@ namespace Code_Translater.Parsers
         //i.e. np -> numpy
         private Dictionary<string, string> packageAliases;
 
-        public Root Parse(IEnumerable<Token> tokens)
+        public Root Parse(TokenEnumerator tokenEnumerator)
         {
+            this.tokenEnumerator = tokenEnumerator;
+
             root = new Root();
 
             stack = new Stack<INodeContainer>();
             stack.Push(root);
             currentIndent = 0;
-
-            tokenEnumerator = new TokenEnumerator(tokens);
 
             packageAliases = new Dictionary<string, string>();
 
@@ -58,10 +58,29 @@ namespace Code_Translater.Parsers
             {
                 case TokenType.ALPHA_NUMERIC:
                     ParseAlpaNumeric();
-                    break;
-                default:
-                    throw new NotImplementedException();
+                    return;
+                case TokenType.PUNCTUATION:
+                    if (tokenEnumerator.Value == "#")
+                    {
+                        ParseComment();
+                        return;
+                    }
+                    break;                   
             }
+
+            throw new NotImplementedException();
+        }
+
+        private void ParseComment()
+        {
+            tokenEnumerator.ReadRestOfLineRaw();
+
+            stack.Peek().Children.Add(new Comment
+            {
+                Value = tokenEnumerator.Value
+            });
+
+            tokenEnumerator.MoveNext();
         }
 
         /// <summary>

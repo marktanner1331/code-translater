@@ -19,4 +19,17 @@
     <ProjectReference Include="..\Code Translater\Code Translater.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="Python Scripts\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="Python Scripts\python 2.py">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="Python Scripts\python 3.py">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
 </Project>

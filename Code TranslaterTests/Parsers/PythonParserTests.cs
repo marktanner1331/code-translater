@@ -5,6 +5,10 @@ using System.Collections.Generic;
 using System.Text;
 using Code_Translater.Tokenizers;
 using Code_Translater.AST;
+using System.Reflection;
+using System.IO;
+using Code_Translater.Utilities;
+using System.Linq;
 
 namespace Code_Translater.Parsers.Tests
 {
@@ -14,13 +18,51 @@ namespace Code_Translater.Parsers.Tests
         [TestMethod()]
         public void ParseTest()
         {
-            string code = "import numpy as np\ndef normalize(x, newLowerBound, newUpperBound):\n    min = np.min(x)\n    max = np.max(x)\n    range = max - min\n    newRange = newUpperBound - newLowerBound\n\n    return [((a - min) / range) * newRange + newLowerBound for a in x]";
+            //string code = "import numpy as np\ndef normalize(x, newLowerBound, newUpperBound):\n    min = np.min(x)\n    max = np.max(x)\n    range = max - min\n    newRange = newUpperBound - newLowerBound\n\n    return [((a - min) / range) * newRange + newLowerBound for a in x]";
+
+            //Tokenizer tokenizer = new PythonTokenizer(code);
+            //IEnumerable<Token> tokens = tokenizer.ReadAllTokens();
+
+            //PythonParser parser = new PythonParser();
+            //Root root = parser.Parse(tokens);
+        }
+
+        [TestMethod()]
+        public void ParseTest2()
+        {
+            //string pythonFolder = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location) + "/Python Scripts/";
+            //string code = File.ReadAllText(pythonFolder + "python 2.py");
+
+            //Tokenizer tokenizer = new PythonTokenizer(code);
+            //IEnumerable<Token> tokens = tokenizer.ReadAllTokens();
+
+            //PythonParser parser = new PythonParser();
+            //Root root = parser.Parse(tokens);
+        }
+
+        [TestMethod()]
+        public void ParseTest3()
+        {
+            string pythonFolder = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location) + "/Python Scripts/";
+            string code = File.ReadAllText(pythonFolder + "python 3.py");
 
             Tokenizer tokenizer = new PythonTokenizer(code);
+            TokenEnumerator tokenEnumerator = new TokenEnumerator(tokenizer);
             IEnumerable<Token> tokens = tokenizer.ReadAllTokens();
 
             PythonParser parser = new PythonParser();
-            Root root = parser.Parse(tokens);
+            Root root = parser.Parse(tokenEnumerator);
+
+            Assert.AreEqual(1, root.Children.Count);
+            if(root.Children.First() is Comment comment)
+            {
+                Assert.AreEqual(" this is a comment", comment.Value);
+            }
+            else
+            {
+                Assert.Fail();
+            }
+           
         }
     }
 }

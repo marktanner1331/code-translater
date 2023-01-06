@@ -13,7 +13,7 @@ namespace Code_Translater.Tokenizers
 
         public readonly string Code;
         private char* Buffer;
-        protected char* Pointer;
+        public char* Pointer;
         protected readonly char* End;
 
         private Token MostRecentToken = null;
@@ -47,6 +47,23 @@ namespace Code_Translater.Tokenizers
                     break;
                 }
             }
+        }
+
+        public Token ReadRestOfLineRaw()
+        {
+            char* start = Pointer;
+            Pointer++;
+
+            while (Pointer != End && *Pointer != '\r' && *Pointer != '\n')
+            {
+                Pointer++;
+            }
+
+            return new Token
+            {
+                Value = new string(start, 0, (int)(Pointer - start)),
+                Type = TokenType.ALPHA_NUMERIC
+            };
         }
 
         /// <summary>
@@ -116,7 +133,7 @@ namespace Code_Translater.Tokenizers
                     };
                 }
 
-                if (":,=.-+/*".Contains(c))
+                if (":,=.-+/*#%".Contains(c))
                 {
                     Pointer++;
                     return new Token

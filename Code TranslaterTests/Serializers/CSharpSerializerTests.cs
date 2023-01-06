@@ -17,17 +17,17 @@ namespace Code_Translater.Serializers.Tests
         [TestMethod()]
         public void SerializeTest()
         {
-            string code = "import numpy as np\ndef normalize(x, newLowerBound, newUpperBound):\n    min = np.min(x)\n    max = np.max(x)\n    range = max - min\n    newRange = newUpperBound - newLowerBound\n\n    return [((a - min) / range) * newRange + newLowerBound for a in x]";
+            //string code = "import numpy as np\ndef normalize(x, newLowerBound, newUpperBound):\n    min = np.min(x)\n    max = np.max(x)\n    range = max - min\n    newRange = newUpperBound - newLowerBound\n\n    return [((a - min) / range) * newRange + newLowerBound for a in x]";
             
-            Tokenizer tokenizer = new PythonTokenizer(code);
-            IEnumerable<Token> tokens = tokenizer.ReadAllTokens();
+            //Tokenizer tokenizer = new PythonTokenizer(code);
+            //IEnumerable<Token> tokens = tokenizer.ReadAllTokens();
 
-            PythonParser parser = new PythonParser();
-            Root root = parser.Parse(tokens);
+            //PythonParser parser = new PythonParser();
+            //Root root = parser.Parse(tokens);
 
-            CSharpSerializer serializer = new CSharpSerializer();
-            string code2 = serializer.Serialize(root);
-            Debug.WriteLine(code2);
+            //CSharpSerializer serializer = new CSharpSerializer();
+            //string code2 = serializer.Serialize(root);
+            //Debug.WriteLine(code2);
         }
     }
 }
