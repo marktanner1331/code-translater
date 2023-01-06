@@ -1,4 +1,5 @@
 ﻿using Code_Translater.AST;
+using Code_Translater.Transformers;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -16,6 +17,9 @@ namespace Code_Translater.Serializers
 
         public string Serialize(Node root)
         {
+            AddTypesTransformer addTypesTransformer = new AddTypesTransformer();
+            addTypesTransformer.AddTypes(root);
+
             stringBuilder = new StringBuilder();
 
             ProcessNode(root);
@@ -180,9 +184,9 @@ namespace Code_Translater.Serializers
             stringBuilder.Append('(');
 
             List<string> paramsString = new List<string>();
-            foreach (FunctionCallParameter param in functionCall.Parameters)
+            foreach (FunctionParameter param in functionCall.Parameters)
             {
-                paramsString.Add(param.Value);
+                paramsString.Add(((Variable)param.Value).Name);
             }
 
             stringBuilder.Append(string.Join(", ", paramsString));
@@ -223,7 +227,7 @@ namespace Code_Translater.Serializers
             foreach(FunctionParameter param in function.Parameters)
             {
                 ScopedVariabies.Peek().Add(param.Name);
-                paramsString.Add("object " + param.Name);
+                paramsString.Add(param.Type + " " + param.Name);
             }
 
             stringBuilder.Append(string.Join(", ", paramsString));

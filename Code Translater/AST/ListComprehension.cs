@@ -4,7 +4,7 @@ using System.Text;
 
 namespace Code_Translater.AST
 {
-    internal class ListComprehension : Node
+    public class ListComprehension : Node
     {
         public Node Collection;
         public string VariableName;

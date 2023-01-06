@@ -8,6 +8,6 @@ namespace Code_Translater.AST
     {
         public string PackageName;
         public string FunctionName;
-        public List<FunctionCallParameter> Parameters;
+        public List<FunctionParameter> Parameters;
     }
 }

@@ -156,9 +156,6 @@ namespace Code_Translater.Parsers
                 throw new Exception();
             }
 
-            Function function = (Function)stack.Peek();
-            function.ReturnType = GetTypeFromNode(rValue);
-
             stack.Peek().Children.Add(new Return
             {
                 Value = rValue
@@ -235,57 +232,10 @@ namespace Code_Translater.Parsers
             stack.Peek().Children.Add(new Assignment
             {
                 Name = variableName,
-                RValue = rValue,
-                Type = GetTypeFromNode(rValue)
+                RValue = rValue
             });
 
             return true;
-        }
-
-        private string GetTypeFromNode(Node node)
-        {
-            if(node is FunctionCall functionCall)
-            {
-                if(functionCall.PackageName == "Math")
-                {
-                    return "float";
-                }
-            }
-            else if(node is BinaryExpression expression)
-            {
-                if(expression.Left is Variable variableL)
-                {
-                    string type = GetTypeFromVariable(variableL.Name);
-                    if(type != "")
-                    {
-                        return type;
-                    }
-                }
-
-                if (expression.Right is Variable variableR)
-                {
-                    string type = GetTypeFromVariable(variableR.Name);
-                    if (type != "")
-                    {
-                        return type;
-                    }
-                }
-
-                if("-+*/".Contains(expression.Operator))
-                {
-                    return "float";
-                }
-            }
-            else if(node is Expression)
-            {
-                return "float";
-            }
-            else if(node is ListComprehension listComprehension)
-            {
-                return "IEnumerable<" + GetTypeFromNode(listComprehension.Expression) + ">";
-            }
-
-            return "Object";
         }
 
         private string GetTypeFromVariable(string name)
@@ -568,7 +518,7 @@ namespace Code_Translater.Parsers
                     {
                         PackageName = packageAliases[value],
                         FunctionName = tokenEnumerator.Value,
-                        Parameters = ParseFunctionCallParameters()
+                        Parameters = ParseFunctionParameters()
                     };
 
                     MakeFunctionCallGeneric(functionCall);
@@ -588,7 +538,7 @@ namespace Code_Translater.Parsers
             }
         }
 
-        private List<FunctionCallParameter> ParseFunctionCallParameters()
+        private List<FunctionParameter> ParseFunctionParameters()
         {
             tokenEnumerator.MoveNext();
             if (tokenEnumerator.Value != "(")
@@ -596,7 +546,7 @@ namespace Code_Translater.Parsers
                 throw new Exception();
             }
 
-            List<FunctionCallParameter> parameters = new List<FunctionCallParameter>();
+            List<FunctionParameter> parameters = new List<FunctionParameter>();
 
             while (true)
             {
@@ -615,9 +565,12 @@ namespace Code_Translater.Parsers
 
                 if (tokenEnumerator.Type == TokenType.ALPHA_NUMERIC)
                 {
-                    parameters.Add(new FunctionCallParameter
+                    parameters.Add(new FunctionParameter
                     {
-                        Value = tokenEnumerator.Value
+                        Value = new Variable
+                        {
+                            Name = tokenEnumerator.Value
+                        }
                     });
                 }
                 else

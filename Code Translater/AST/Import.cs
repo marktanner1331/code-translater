@@ -4,7 +4,7 @@ using System.Text;
 
 namespace Code_Translater.AST
 {
-    internal class Import : Node
+    public class Import : Node
     {
         public string Name;
     }
