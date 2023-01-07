@@ -1,5 +1,6 @@
 ﻿using Code_Translater.AST;
 using Code_Translater.Transformers;
+using Code_Translater.Utilities;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -7,13 +8,13 @@ using System.Text;
 
 namespace Code_Translater.Serializers
 {
-    public class CSharpSerializer
+    public class CSharpSerializer : ASTProcessor, ISerializer
     {
         private StringBuilder stringBuilder;
         private int Indent = 0;
-        private bool IsNewLine = true;
+        private bool NeedsNewLine = false;
 
-        private Stack<List<string>> ScopedVariabies = new Stack<List<string>>();
+        private Stack<List<string>> ScopedVariabies;
 
         public string Serialize(Node root)
         {
@@ -22,7 +23,12 @@ namespace Code_Translater.Serializers
 
             stringBuilder = new StringBuilder();
 
-            ProcessNode(root);
+            ScopedVariabies = new Stack<List<string>>();
+
+            //outer 'file-level' scope
+            ScopedVariabies.Push(new List<string>());
+
+            Process(root);
 
             return stringBuilder.ToString();
         }
@@ -32,49 +38,16 @@ namespace Code_Translater.Serializers
             return ScopedVariabies.SelectMany(x => x).Any(x => x == name);
         }
 
-        private void ProcessNode(Node node)
+        protected override void Process(Node node)
         {
-            if(IsNewLine)
+            if(NeedsNewLine)
             {
+                stringBuilder.AppendLine();
                 AddIndent();
-                IsNewLine = false;
+                NeedsNewLine = false;
             }
 
-            switch(node)
-            {
-                case Root root:
-                    ProcessRoot(root);
-                    break;
-                case Import import:
-                    //we will build imports manually
-                    break;
-                case Function function:
-                    ProcessFunction(function);
-                    break;
-                case Assignment assignment:
-                    ProcessAssignment(assignment);
-                    break;
-                case FunctionCall functionCall:
-                    ProcessFunctionCall(functionCall);
-                    break;
-                case BinaryExpression binaryExpression:
-                    ProcessBinaryExpression(binaryExpression);
-                    break;
-                case Variable variable:
-                    ProcessVariable(variable);
-                    break;
-                case Return _return:
-                    ProcessReturn(_return);
-                    break;
-                case ListComprehension listComprehension:
-                    ProcessListComprehension(listComprehension);
-                    break;
-                case Expression expression:
-                    ProcessExpression(expression);
-                    break;
-                default:
-                    throw new NotImplementedException();
-            }
+            base.Process(node);
         }
 
         private void AddIndent()
@@ -82,19 +55,19 @@ namespace Code_Translater.Serializers
             stringBuilder.Append(new String('\t', Indent));
         }
 
-        private void ProcessExpression(Expression expression)
+        protected override void ProcessExpression(Expression expression)
         {
             void processCoefficient(Node node)
             {
                 if (node is Expression || node is BinaryExpression)
                 {
                     stringBuilder.Append("(");
-                    ProcessNode(node);
+                    Process(node);
                     stringBuilder.Append(")");
                 }
                 else
                 {
-                    ProcessNode(node);
+                    Process(node);
                 }
             }
 
@@ -112,44 +85,44 @@ namespace Code_Translater.Serializers
             }
         }
 
-        private void ProcessListComprehension(ListComprehension listComprehension)
+        protected override void ProcessListComprehension(ListComprehension listComprehension)
         {
-            ProcessNode(listComprehension.Collection);
+            Process(listComprehension.Collection);
             stringBuilder.Append(".Select(");
             stringBuilder.Append(listComprehension.VariableName);
             stringBuilder.Append(" => ");
-            ProcessNode(listComprehension.Expression);
+            Process(listComprehension.Expression);
             stringBuilder.Append(")");
         }
 
-        private void ProcessReturn(Return @return)
+        protected override void ProcessReturn(Return @return)
         {
             stringBuilder.Append("return");
 
             if(@return.Value != null)
             {
                 stringBuilder.Append(" ");
-                ProcessNode(@return.Value);
+                Process(@return.Value);
             }
 
-            stringBuilder.AppendLine(";");
-            IsNewLine = true;
+            stringBuilder.Append(";");
+            NeedsNewLine = true;
         }
 
-        private void ProcessVariable(Variable variable)
+        protected override void ProcessVariable(Variable variable)
         {
             stringBuilder.Append(variable.Name);
         }
 
-        private void ProcessBinaryExpression(BinaryExpression binaryExpression)
+        protected override void ProcessBinaryExpression(BinaryExpression binaryExpression)
         {
-            ProcessNode(binaryExpression.Left);
+            Process(binaryExpression.Left);
 
             stringBuilder.Append(' ');
             stringBuilder.Append(binaryExpression.Operator);
             stringBuilder.Append(' ');
 
-            ProcessNode(binaryExpression.Right);
+            Process(binaryExpression.Right);
         }
 
         private void MakeFunctionCallNonGeneric(FunctionCall functionCall)
@@ -167,10 +140,27 @@ namespace Code_Translater.Serializers
                             break;
                     }
                     break;
+                case "ParseOrCast":
+                    switch(functionCall.FunctionName)
+                    {
+                        case "int":
+                            if(functionCall.Parameters.First().Type == null)
+                            {
+                                //assume it's a string
+                                functionCall.PackageName = "Int";
+                                functionCall.FunctionName = "Parse";
+                            }
+                            else
+                            {
+                                throw new NotImplementedException();
+                            }
+                            break;
+                    }
+                    break;
             }
         }
 
-        private void ProcessFunctionCall(FunctionCall functionCall)
+        protected override void ProcessFunctionCall(FunctionCall functionCall)
         {
             MakeFunctionCallNonGeneric(functionCall);
 
@@ -183,22 +173,31 @@ namespace Code_Translater.Serializers
 
             stringBuilder.Append('(');
 
-            List<string> paramsString = new List<string>();
-            foreach (FunctionParameter param in functionCall.Parameters)
-            {
-                paramsString.Add(((Variable)param.Value).Name);
-            }
+            IEnumerator<FunctionParameter> parameters = functionCall.Parameters.GetEnumerator();
+            parameters.MoveNext();
 
-            stringBuilder.Append(string.Join(", ", paramsString));
+            while(true)
+            {
+                Process(parameters.Current.Value);
+
+                if (parameters.MoveNext())
+                {
+                    stringBuilder.Append(", ");
+                }
+                else
+                {
+                    break;
+                }
+            }
 
             stringBuilder.Append(')');
         }
 
-        private void ProcessAssignment(Assignment assignment)
+        protected override void ProcessAssignment(Assignment assignment)
         {
             if(HasVariableInScope(assignment.Name) == false)
             {
-                stringBuilder.Append(assignment.Type);
+                stringBuilder.Append(assignment.Type ?? "var");
                 stringBuilder.Append(" ");
                 ScopedVariabies.Peek().Add(assignment.Name);
             }
@@ -207,13 +206,13 @@ namespace Code_Translater.Serializers
 
             stringBuilder.Append(" = ");
 
-            ProcessNode(assignment.RValue);
+            Process(assignment.RValue);
 
-            stringBuilder.AppendLine(";");
-            IsNewLine = true;
+            stringBuilder.Append(";");
+            NeedsNewLine = true;
         }
 
-        private void ProcessFunction(Function function)
+        protected override void ProcessFunction(Function function)
         {
             ScopedVariabies.Push(new List<string>());
             
@@ -236,29 +235,50 @@ namespace Code_Translater.Serializers
             stringBuilder.AppendLine();
             AddIndent();
 
-            stringBuilder.AppendLine("{");
-            IsNewLine = true;
+            stringBuilder.Append("{");
+            NeedsNewLine = true;
 
             Indent++;
 
             foreach (Node node in function.Children)
             {
-                ProcessNode(node);
+                Process(node);
             }
 
-            stringBuilder.AppendLine("}");
-            IsNewLine = true;
+            stringBuilder.Append("}");
+            NeedsNewLine = true;
             Indent--;
 
             ScopedVariabies.Pop();
         }
 
-        private void ProcessRoot(Root root)
+        protected override void ProcessRoot(Root root)
         {
             foreach(Node node in root.Children)
             {
-                ProcessNode(node);
+                Process(node);
             }
+        }
+
+        protected override void ProcessImport(Import import)
+        {
+            //we handle imports manually
+        }
+
+        protected override void ProcessComment(Comment comment)
+        {
+            stringBuilder.Append("//" + comment.Value);
+            NeedsNewLine = true;
+        }
+
+        protected override void ProcessBlankLine()
+        {
+            NeedsNewLine = true;
+        }
+
+        protected override void ProcessNumber(Number number)
+        {
+            stringBuilder.Append(number.Value);
         }
     }
 }

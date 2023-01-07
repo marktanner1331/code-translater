@@ -10,9 +10,6 @@ namespace Code_Translater.Utilities
     {
         private Tokenizer tokenizer;
 
-        private char* PreviousPointer;
-        private Token PreviousToken;
-
         public string Value
         {
             get => Token.Value;
@@ -27,9 +24,29 @@ namespace Code_Translater.Utilities
         public TokenEnumerator(Tokenizer tokenizer)
         {
             this.tokenizer = tokenizer;
-
-            this.PreviousPointer = tokenizer.Pointer;
             Token = tokenizer.ReadToken();
+        }
+
+        public TokenizerState GetCurrentState()
+        {
+            return new TokenEnumeratorState
+            {
+                TokenizerState = this.tokenizer.GetCurrentState(),
+                Token = this.Token
+            };
+        }
+
+        public void RestoreState(TokenizerState state)
+        {
+            if(state is TokenEnumeratorState enumeratorState)
+            {
+                this.Token = enumeratorState.Token;
+                this.tokenizer.RestoreState(state);
+            }
+            else
+            {
+                throw new Exception();
+            }
         }
 
         public bool MoveNext()
@@ -39,22 +56,8 @@ namespace Code_Translater.Utilities
                 return false;
             }
 
-            this.PreviousPointer = tokenizer.Pointer;
-            this.PreviousToken = Token;
-
             Token = tokenizer.ReadToken();
             return true;
-        }
-
-        public void MovePrevious()
-        {
-            if(this.tokenizer.Pointer == this.PreviousPointer)
-            {
-                throw new Exception("Cannot MovePrevious() multiple times");
-            }
-
-            this.Token = PreviousToken;
-            this.tokenizer.Pointer = PreviousPointer;
         }
 
         public bool ReadRestOfLineRaw()
@@ -64,11 +67,14 @@ namespace Code_Translater.Utilities
                 return false;
             }
 
-            this.PreviousPointer = tokenizer.Pointer;
-            this.PreviousToken = Token;
-
             Token = tokenizer.ReadRestOfLineRaw();
             return true;
+        }
+
+        private class TokenEnumeratorState : TokenizerState
+        {
+            public Token Token;
+            public TokenizerState TokenizerState;
         }
     }
 }

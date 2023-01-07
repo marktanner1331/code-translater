@@ -13,7 +13,7 @@ namespace Code_Translater.Tokenizers
 
         public readonly string Code;
         private char* Buffer;
-        public char* Pointer;
+        private char* Pointer;
         protected readonly char* End;
 
         private Token MostRecentToken = null;
@@ -24,7 +24,7 @@ namespace Code_Translater.Tokenizers
             Code = code;
             fixed (char* temp = code)
             {
-                Buffer = (char*)Marshal.AllocHGlobal(code.Length);
+                Buffer = (char*)Marshal.AllocHGlobal(code.Length * 2);
 
                 //assuming chars are utf16
                 //and assuming all code is ASCII
@@ -33,6 +33,23 @@ namespace Code_Translater.Tokenizers
                 Pointer = Buffer;
                 End = Buffer + code.Length;
             }
+        }
+
+        public TokenizerState GetCurrentState()
+        {
+            return new TokenizerState
+            {
+                PointerOffset = Pointer - Buffer,
+                IndentSize = IndentSize,
+                MostRecentToken = MostRecentToken
+            };
+        }
+
+        public void RestoreState(TokenizerState state)
+        {
+            this.Pointer = this.Buffer + state.PointerOffset;
+            this.IndentSize = state.IndentSize;
+            this.MostRecentToken = state.MostRecentToken;
         }
 
         public IEnumerable<Token> ReadAllTokens()
@@ -215,10 +232,15 @@ namespace Code_Translater.Tokenizers
         {
             char* start = Pointer;
             Pointer++;
-
+            
             while (true)
             {
                 char c = *Pointer;
+                if(c > 128)
+                {
+
+                }    
+
                 if (char.IsLetterOrDigit(c) || c == '_')
                 {
                     Pointer++;

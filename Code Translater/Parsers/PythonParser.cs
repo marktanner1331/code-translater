@@ -10,7 +10,7 @@ using System.Text;
 
 namespace Code_Translater.Parsers
 {
-    public class PythonParser
+    public class PythonParser : IParser
     {
         private Root root;
         private TokenEnumerator tokenEnumerator;
@@ -22,9 +22,10 @@ namespace Code_Translater.Parsers
         //i.e. np -> numpy
         private Dictionary<string, string> packageAliases;
 
-        public Root Parse(TokenEnumerator tokenEnumerator)
+        public Root Parse(string code)
         {
-            this.tokenEnumerator = tokenEnumerator;
+            Tokenizer tokenizer = new PythonTokenizer(code);
+            this.tokenEnumerator = new TokenEnumerator(tokenizer);
 
             root = new Root();
 
@@ -65,10 +66,19 @@ namespace Code_Translater.Parsers
                         ParseComment();
                         return;
                     }
-                    break;                   
+                    break;
+                case TokenType.NEW_LINE:
+                    AddBlankLine();
+                    return;                  
             }
 
             throw new NotImplementedException();
+        }
+
+        private void AddBlankLine()
+        {
+            stack.Peek().Children.Add(new BlankLine());
+            tokenEnumerator.MoveNext();
         }
 
         private void ParseComment()
@@ -235,12 +245,14 @@ namespace Code_Translater.Parsers
 
         private bool TryParseAssignment()
         {
+            TokenizerState currentStete = tokenEnumerator.GetCurrentState();
+
             string variableName = tokenEnumerator.Value;
             tokenEnumerator.MoveNext();
 
             if (tokenEnumerator.Type != TokenType.PUNCTUATION || tokenEnumerator.Value != "=")
             {
-                tokenEnumerator.MovePrevious();
+                tokenEnumerator.RestoreState(currentStete);
                 return false;
             }
 
@@ -276,9 +288,9 @@ namespace Code_Translater.Parsers
         {
             if (tokenEnumerator.Type == TokenType.ALPHA_NUMERIC)
             {
-                if (TryParseFunctionCall(out FunctionCall functionCall))
+                if (TryParseProperty(out Node property))
                 {
-                    return functionCall;
+                    return property;
                 }
 
                 if (TryParseBinaryExpression(out BinaryExpression binaryExpression))
@@ -293,8 +305,23 @@ namespace Code_Translater.Parsers
                     return listComprehension;
                 }
             }
+            else if(tokenEnumerator.Type == TokenType.NUMBER)
+            {
+                return ParseNumber();
+            }
 
             throw new NotImplementedException();
+        }
+
+        private Number ParseNumber()
+        {
+            Number number = new Number
+            {
+                Value = tokenEnumerator.Value
+            };
+
+            tokenEnumerator.MoveNext();
+            return number;
         }
 
         /// <summary>
@@ -450,6 +477,8 @@ namespace Code_Translater.Parsers
         /// </summary>
         private bool TryParseBinaryExpression(out BinaryExpression binaryExpression)
         {
+            TokenizerState currentStete = tokenEnumerator.GetCurrentState();
+
             string value = tokenEnumerator.Value;
 
             tokenEnumerator.MoveNext();
@@ -457,14 +486,14 @@ namespace Code_Translater.Parsers
             if (tokenEnumerator.Type != TokenType.PUNCTUATION)
             {
                 binaryExpression = null;
-                tokenEnumerator.MovePrevious();
+                tokenEnumerator.RestoreState(currentStete);
                 return false;
             }
 
             if (!"-+*/".Contains(tokenEnumerator.Value))
             {
                 binaryExpression = null;
-                tokenEnumerator.MovePrevious();
+                tokenEnumerator.RestoreState(currentStete);
                 return false;
             }
 
@@ -474,8 +503,7 @@ namespace Code_Translater.Parsers
             if (tokenEnumerator.Type != TokenType.ALPHA_NUMERIC)
             {
                 binaryExpression = null;
-                tokenEnumerator.MovePrevious();
-                tokenEnumerator.MovePrevious();
+                tokenEnumerator.RestoreState(currentStete);
                 return false;
             }
 
@@ -510,7 +538,77 @@ namespace Code_Translater.Parsers
                             break;
                     }
                     break;
+                case null:
+                    switch(functionCall.FunctionName)
+                    {
+                        case "int":
+                            functionCall.PackageName = "ParseOrCast";
+                            break;
+                    }
+                    break;
             }
+        }
+
+        private bool TryParseProperty(out Node node)
+        {
+            TokenizerState currentStete = tokenEnumerator.GetCurrentState();
+
+            string value = tokenEnumerator.Value;
+
+            tokenEnumerator.MoveNext();
+
+            if (tokenEnumerator.Type == TokenType.OPEN_BRACKET && tokenEnumerator.Value == "(")
+            {
+                node = new FunctionCall()
+                {
+                    PackageName = null,
+                    FunctionName = value,
+                    Parameters = ParseFunctionParameters()
+                };
+
+                MakeFunctionCallGeneric(node as FunctionCall);
+
+                return true;
+            }
+            else if (tokenEnumerator.Type == TokenType.PUNCTUATION && tokenEnumerator.Value == ".")
+            {
+                tokenEnumerator.MoveNext();
+
+                if(TryParseProperty(out Node subNode))
+                {
+                    if(subNode is FunctionCall functionCall)
+                    {
+                        if (functionCall.PackageName != null)
+                        {
+                            functionCall.PackageName = value + "." + functionCall.PackageName;
+                        }
+                        else
+                        {
+                            functionCall.PackageName = value;
+                        }
+                    }
+                    else if(subNode is Variable variable)
+                    {
+                        variable.Name = value + "." + variable.Name;
+                    }
+
+                    node = subNode;
+                    return true;
+                }
+            }
+            else
+            {
+                node = new Variable
+                {
+                    Name = value
+                };
+
+                return true;
+            }
+
+            node = null;
+            tokenEnumerator.RestoreState(currentStete);
+            return false;
         }
 
         /// <summary>
@@ -518,11 +616,26 @@ namespace Code_Translater.Parsers
         /// </summary>
         private bool TryParseFunctionCall(out FunctionCall functionCall)
         {
+            TokenizerState currentStete = tokenEnumerator.GetCurrentState();
+
             string value = tokenEnumerator.Value;
 
             tokenEnumerator.MoveNext();
 
-            if (tokenEnumerator.Type == TokenType.PUNCTUATION && tokenEnumerator.Value == ".")
+            if(tokenEnumerator.Type == TokenType.OPEN_BRACKET && tokenEnumerator.Value == "(")
+            {
+                functionCall = new FunctionCall()
+                {
+                    PackageName = null,
+                    FunctionName = value,
+                    Parameters = ParseFunctionParameters()
+                };
+
+                MakeFunctionCallGeneric(functionCall);
+
+                return true;
+            }
+            else if (tokenEnumerator.Type == TokenType.PUNCTUATION && tokenEnumerator.Value == ".")
             {
                 tokenEnumerator.MoveNext();
 
@@ -530,6 +643,8 @@ namespace Code_Translater.Parsers
                 {
                     throw new Exception();
                 }
+
+                tokenEnumerator.MoveNext();
 
                 if (packageAliases.ContainsKey(value))
                 {
@@ -546,20 +661,26 @@ namespace Code_Translater.Parsers
                 }
                 else
                 {
-                    throw new NotImplementedException();
+                    functionCall = new FunctionCall()
+                    {
+                        PackageName = value,
+                        FunctionName = tokenEnumerator.Value,
+                        Parameters = ParseFunctionParameters()
+                    };
+
+                    return true;
                 }
             }
             else
             {
                 functionCall = null;
-                tokenEnumerator.MovePrevious();
+                tokenEnumerator.RestoreState(currentStete);
                 return false;
             }
         }
 
         private List<FunctionParameter> ParseFunctionParameters()
         {
-            tokenEnumerator.MoveNext();
             if (tokenEnumerator.Value != "(")
             {
                 throw new Exception();
@@ -567,9 +688,10 @@ namespace Code_Translater.Parsers
 
             List<FunctionParameter> parameters = new List<FunctionParameter>();
 
+            tokenEnumerator.MoveNext();
+
             while (true)
             {
-                tokenEnumerator.MoveNext();
                 if (tokenEnumerator.Value == ")")
                 {
                     tokenEnumerator.MoveNext();
@@ -582,20 +704,10 @@ namespace Code_Translater.Parsers
                     tokenEnumerator.MoveNext();
                 }
 
-                if (tokenEnumerator.Type == TokenType.ALPHA_NUMERIC)
+                parameters.Add(new FunctionParameter
                 {
-                    parameters.Add(new FunctionParameter
-                    {
-                        Value = new Variable
-                        {
-                            Name = tokenEnumerator.Value
-                        }
-                    });
-                }
-                else
-                {
-                    throw new NotImplementedException();
-                }
+                    Value = ParseRValue()
+                });
             }
         }
 

@@ -41,11 +41,23 @@ namespace Code_Translater.Utilities
                 case Expression expression:
                     ProcessExpression(expression);
                     break;
+                case Comment comment:
+                    ProcessComment(comment);
+                    break;
+                case BlankLine blankLine:
+                    ProcessBlankLine();
+                    break;
+                case Number number:
+                    ProcessNumber(number);
+                    break;
                 default:
                     throw new NotImplementedException();
             }
         }
 
+        protected abstract void ProcessNumber(Number number);
+        protected abstract void ProcessBlankLine();
+        protected abstract void ProcessComment(Comment comment);
         protected abstract void ProcessExpression(Expression expression);
         protected abstract void ProcessListComprehension(ListComprehension listComprehension);
         protected abstract void ProcessReturn(Return @return);
@@ -84,11 +96,20 @@ namespace Code_Translater.Utilities
                     return ProcessListComprehension(listComprehension);
                 case Expression expression:
                     return ProcessExpression(expression);
+                case Comment comment:
+                    return ProcessComment(comment);
+                case BlankLine blankLine:
+                    return ProcessBlankLine();
+                case Number number:
+                    return ProcessNumber(number);
                 default:
                     throw new NotImplementedException();
             }
         }
 
+        protected abstract T ProcessNumber(Number number);
+        protected abstract T ProcessBlankLine();
+        protected abstract T ProcessComment(Comment comment);
         protected abstract T ProcessExpression(Expression expression);
         protected abstract T ProcessListComprehension(ListComprehension listComprehension);
         protected abstract T ProcessReturn(Return @return);

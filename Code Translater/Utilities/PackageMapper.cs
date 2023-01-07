@@ -13,6 +13,7 @@ namespace Code_Translater.Utilities
         {
             AddFunction("Enumerable.min", "float", "IEnumerable<float>");
             AddFunction("Enumerable.max", "float", "IEnumerable<float>");
+            AddFunction("ParseOrCast.int", "int", "string");
         }
 
         public bool TryGetReturnType(string package, string function, out string type)

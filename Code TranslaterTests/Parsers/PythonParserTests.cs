@@ -9,6 +9,7 @@ using System.Reflection;
 using System.IO;
 using Code_Translater.Utilities;
 using System.Linq;
+using Code_TranslaterTests;
 
 namespace Code_Translater.Parsers.Tests
 {
@@ -43,15 +44,7 @@ namespace Code_Translater.Parsers.Tests
         [TestMethod()]
         public void ParseTest3()
         {
-            string pythonFolder = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location) + "/Python Scripts/";
-            string code = File.ReadAllText(pythonFolder + "python 3.py");
-
-            Tokenizer tokenizer = new PythonTokenizer(code);
-            TokenEnumerator tokenEnumerator = new TokenEnumerator(tokenizer);
-            IEnumerable<Token> tokens = tokenizer.ReadAllTokens();
-
-            PythonParser parser = new PythonParser();
-            Root root = parser.Parse(tokenEnumerator);
+            Root root = Tester.Parse(Tester.Language.PYTHON, 3);
 
             Assert.AreEqual(1, root.Children.Count);
             if(root.Children.First() is Comment comment)

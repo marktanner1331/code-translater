@@ -16,6 +16,8 @@ namespace Code_Translater.Transformers
 
         public void AddTypes(Node node)
         {
+            //outer 'file-level' scope
+            Scope.Push(new Dictionary<string, IHasType>());
             this.Process(node);
         }
 
@@ -40,6 +42,11 @@ namespace Code_Translater.Transformers
             }
 
             return type;
+        }
+
+        protected override string ProcessComment(Comment comment)
+        {
+            return null;
         }
 
         protected override string ProcessBinaryExpression(BinaryExpression binaryExpression)
@@ -143,6 +150,16 @@ namespace Code_Translater.Transformers
         protected override string ProcessVariable(Variable variable)
         {
             return null;
+        }
+
+        protected override string ProcessBlankLine()
+        {
+            return null;
+        }
+
+        protected override string ProcessNumber(Number number)
+        {
+            return "float";
         }
     }
 }
