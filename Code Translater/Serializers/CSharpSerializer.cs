@@ -60,7 +60,7 @@ namespace Code_Translater.Serializers
         {
             void processCoefficient(Node node)
             {
-                if (node is Expression || node is BinaryExpression)
+                if (node is Expression)
                 {
                     stringBuilder.Append("(");
                     Process(node);
@@ -112,17 +112,6 @@ namespace Code_Translater.Serializers
         protected override void ProcessVariable(Variable variable)
         {
             stringBuilder.Append(variable.Name);
-        }
-
-        protected override void ProcessBinaryExpression(BinaryExpression binaryExpression)
-        {
-            Process(binaryExpression.Left);
-
-            stringBuilder.Append(' ');
-            stringBuilder.Append(binaryExpression.Operator);
-            stringBuilder.Append(' ');
-
-            Process(binaryExpression.Right);
         }
 
         private void MakeFunctionCallNonGeneric(FunctionCall functionCall)
@@ -371,17 +360,6 @@ namespace Code_Translater.Serializers
         protected override void ProcessStringLiteral(StringLiteral stringLiteral)
         {
             stringBuilder.Append(stringLiteral.Value);
-        }
-
-        protected override void ProcessEquality(Equality equality)
-        {
-            Process(equality.Left);
-
-            stringBuilder.Append(' ');
-            stringBuilder.Append(equality.Operator);
-            stringBuilder.Append(' ');
-
-            Process(equality.Right);
         }
     }
 }

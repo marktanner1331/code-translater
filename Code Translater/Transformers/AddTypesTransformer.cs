@@ -49,29 +49,21 @@ namespace Code_Translater.Transformers
             return null;
         }
 
-        protected override string ProcessBinaryExpression(BinaryExpression binaryExpression)
+        protected override string ProcessExpression(Expression expression)
         {
-            void processOperand(Node node)
+            foreach(Node coefficient in expression.Coefficients)
             {
-                if (node is Variable variable && UnresolvedTypes.ContainsKey(variable.Name))
+                if (coefficient is Variable variable && UnresolvedTypes.ContainsKey(variable.Name))
                 {
                     UnresolvedTypes[variable.Name].Type = "float";
                     UnresolvedTypes.Remove(variable.Name);
                 }
                 else
                 {
-                    Process(node);
+                    Process(coefficient);
                 }
             }
 
-            processOperand(binaryExpression.Left);
-            processOperand(binaryExpression.Right);
-
-            return "float";
-        }
-
-        protected override string ProcessExpression(Expression expression)
-        {
             return "float";
         }
 

@@ -26,9 +26,6 @@ namespace Code_Translater.Utilities
                 case FunctionCall functionCall:
                     ProcessFunctionCall(functionCall);
                     break;
-                case BinaryExpression binaryExpression:
-                    ProcessBinaryExpression(binaryExpression);
-                    break;
                 case Variable variable:
                     ProcessVariable(variable);
                     break;
@@ -71,15 +68,11 @@ namespace Code_Translater.Utilities
                 case StringLiteral stringLiteral:
                     ProcessStringLiteral(stringLiteral);
                     break;
-                case Equality equality:
-                    ProcessEquality(equality);
-                    break;
                 default:
                     throw new NotImplementedException();
             }
         }
 
-        protected abstract void ProcessEquality(Equality equality);
         protected abstract void ProcessStringLiteral(StringLiteral stringLiteral);
         protected abstract void ProcessTupleNode(TupleNode tupleNode);
         protected abstract void ProcessMultipleAssignment(MultipleAssignment multipleAssignment);
@@ -94,7 +87,6 @@ namespace Code_Translater.Utilities
         protected abstract void ProcessListComprehension(ListComprehension listComprehension);
         protected abstract void ProcessReturn(Return @return);
         protected abstract void ProcessVariable(Variable variable);
-        protected abstract void ProcessBinaryExpression(BinaryExpression binaryExpression);
         protected abstract void ProcessFunctionCall(FunctionCall functionCall);
         protected abstract void ProcessFunction(Function function);
         protected abstract void ProcessAssignment(Assignment assignment);
@@ -118,8 +110,6 @@ namespace Code_Translater.Utilities
                     return ProcessAssignment(assignment);
                 case FunctionCall functionCall:
                     return ProcessFunctionCall(functionCall);
-                case BinaryExpression binaryExpression:
-                    return ProcessBinaryExpression(binaryExpression);
                 case Variable variable:
                     return ProcessVariable(variable);
                 case Return _return:
@@ -155,7 +145,6 @@ namespace Code_Translater.Utilities
         protected abstract T ProcessListComprehension(ListComprehension listComprehension);
         protected abstract T ProcessReturn(Return @return);
         protected abstract T ProcessVariable(Variable variable);
-        protected abstract T ProcessBinaryExpression(BinaryExpression binaryExpression);
         protected abstract T ProcessFunctionCall(FunctionCall functionCall);
         protected abstract T ProcessFunction(Function function);
         protected abstract T ProcessAssignment(Assignment assignment);

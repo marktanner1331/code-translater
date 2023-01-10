@@ -7,7 +7,7 @@ namespace Test
     {
         static void Main(string[] args)
         {
-            Tester.SerializeTest(Tester.Language.PYTHON, Tester.Language.CSHARP, 7);
+            Tester.SerializeTest(Tester.Language.PYTHON, Tester.Language.CSHARP, 6);
         }
     }
 }
