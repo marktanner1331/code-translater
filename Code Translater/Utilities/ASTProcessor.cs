@@ -50,11 +50,43 @@ namespace Code_Translater.Utilities
                 case Number number:
                     ProcessNumber(number);
                     break;
+                case While @while:
+                    ProcessWhile(@while);
+                    break;
+                case If @if:
+                    ProcessIf(@if);
+                    break;
+                case Break _:
+                    ProcessBreak();
+                    break;
+                case BooleanLiteral booleanLiteral:
+                    ProcessBooleanLiteral(booleanLiteral);
+                    break;
+                case MultipleAssignment multipleAssignment:
+                    ProcessMultipleAssignment(multipleAssignment);
+                    break;
+                case TupleNode tupleNode:
+                    ProcessTupleNode(tupleNode);
+                    break;
+                case StringLiteral stringLiteral:
+                    ProcessStringLiteral(stringLiteral);
+                    break;
+                case Equality equality:
+                    ProcessEquality(equality);
+                    break;
                 default:
                     throw new NotImplementedException();
             }
         }
 
+        protected abstract void ProcessEquality(Equality equality);
+        protected abstract void ProcessStringLiteral(StringLiteral stringLiteral);
+        protected abstract void ProcessTupleNode(TupleNode tupleNode);
+        protected abstract void ProcessMultipleAssignment(MultipleAssignment multipleAssignment);
+        protected abstract void ProcessBooleanLiteral(BooleanLiteral booleanLiteral);
+        protected abstract void ProcessBreak();
+        protected abstract void ProcessIf(If @if);
+        protected abstract void ProcessWhile(While @while);
         protected abstract void ProcessNumber(Number number);
         protected abstract void ProcessBlankLine();
         protected abstract void ProcessComment(Comment comment);
@@ -98,15 +130,24 @@ namespace Code_Translater.Utilities
                     return ProcessExpression(expression);
                 case Comment comment:
                     return ProcessComment(comment);
-                case BlankLine blankLine:
+                case BlankLine _:
                     return ProcessBlankLine();
                 case Number number:
                     return ProcessNumber(number);
+                case While @while:
+                    return ProcessWhile(@while);
+                case If @if:
+                    return ProcessIf(@if);
+                case Break _:
+                    return ProcessBreak();
                 default:
                     throw new NotImplementedException();
             }
         }
 
+        protected abstract T ProcessBreak();
+        protected abstract T ProcessIf(If @if);
+        protected abstract T ProcessWhile(While @while);
         protected abstract T ProcessNumber(Number number);
         protected abstract T ProcessBlankLine();
         protected abstract T ProcessComment(Comment comment);

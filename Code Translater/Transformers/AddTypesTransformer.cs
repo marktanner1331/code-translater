@@ -51,6 +51,22 @@ namespace Code_Translater.Transformers
 
         protected override string ProcessBinaryExpression(BinaryExpression binaryExpression)
         {
+            void processOperand(Node node)
+            {
+                if (node is Variable variable && UnresolvedTypes.ContainsKey(variable.Name))
+                {
+                    UnresolvedTypes[variable.Name].Type = "float";
+                    UnresolvedTypes.Remove(variable.Name);
+                }
+                else
+                {
+                    Process(node);
+                }
+            }
+
+            processOperand(binaryExpression.Left);
+            processOperand(binaryExpression.Right);
+
             return "float";
         }
 
@@ -160,6 +176,21 @@ namespace Code_Translater.Transformers
         protected override string ProcessNumber(Number number)
         {
             return "float";
+        }
+
+        protected override string ProcessBreak()
+        {
+            return null;
+        }
+
+        protected override string ProcessIf(If @if)
+        {
+            return null;
+        }
+
+        protected override string ProcessWhile(While @while)
+        {
+            return null;
         }
     }
 }

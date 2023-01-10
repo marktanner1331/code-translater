@@ -4,10 +4,13 @@ using System.Text;
 
 namespace Code_Translater.AST
 {
-    public class Root : Node, INodeContainer
+    public class If : Node, INodeContainer
     {
+        public Node Expression;
+
         public List<Node> Children { get; set; }
-        public Root()
+
+        public If()
         {
             Children = new List<Node>();
         }

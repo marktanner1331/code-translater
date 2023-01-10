@@ -18,8 +18,9 @@ namespace Code_Translater.Serializers
 
         public string Serialize(Node root)
         {
-            AddTypesTransformer addTypesTransformer = new AddTypesTransformer();
-            addTypesTransformer.AddTypes(root);
+            new AddTypesTransformer().AddTypes(root);
+            new RemoveMultipleAssignment().RemoveMultipleAssignments(root);
+            new RemoveImports().Remove(root);
 
             stringBuilder = new StringBuilder();
 
@@ -105,7 +106,6 @@ namespace Code_Translater.Serializers
                 Process(@return.Value);
             }
 
-            stringBuilder.Append(";");
             NeedsNewLine = true;
         }
 
@@ -174,19 +174,21 @@ namespace Code_Translater.Serializers
             stringBuilder.Append('(');
 
             IEnumerator<FunctionParameter> parameters = functionCall.Parameters.GetEnumerator();
-            parameters.MoveNext();
 
-            while(true)
+            if (parameters.MoveNext())
             {
-                Process(parameters.Current.Value);
+                while (true)
+                {
+                    Process(parameters.Current.Value);
 
-                if (parameters.MoveNext())
-                {
-                    stringBuilder.Append(", ");
-                }
-                else
-                {
-                    break;
+                    if (parameters.MoveNext())
+                    {
+                        stringBuilder.Append(", ");
+                    }
+                    else
+                    {
+                        break;
+                    }
                 }
             }
 
@@ -208,14 +210,11 @@ namespace Code_Translater.Serializers
 
             Process(assignment.RValue);
 
-            stringBuilder.Append(";");
             NeedsNewLine = true;
         }
 
         protected override void ProcessFunction(Function function)
-        {
-            ScopedVariabies.Push(new List<string>());
-            
+        {            
             stringBuilder.Append("static ");
             stringBuilder.Append(function.ReturnType);
             stringBuilder.Append(" ");
@@ -225,6 +224,11 @@ namespace Code_Translater.Serializers
             List<string> paramsString = new List<string>();
             foreach(FunctionParameter param in function.Parameters)
             {
+                if(param.Type == null)
+                {
+                    param.Type = "object";
+                }
+
                 ScopedVariabies.Peek().Add(param.Name);
                 paramsString.Add(param.Type + " " + param.Name);
             }
@@ -233,31 +237,13 @@ namespace Code_Translater.Serializers
 
             stringBuilder.Append(')');
             stringBuilder.AppendLine();
-            AddIndent();
 
-            stringBuilder.Append("{");
-            NeedsNewLine = true;
-
-            Indent++;
-
-            foreach (Node node in function.Children)
-            {
-                Process(node);
-            }
-
-            stringBuilder.Append("}");
-            NeedsNewLine = true;
-            Indent--;
-
-            ScopedVariabies.Pop();
+            ProcessNodeContainer(function);
         }
 
         protected override void ProcessRoot(Root root)
         {
-            foreach(Node node in root.Children)
-            {
-                Process(node);
-            }
+            ProcessNodeContainer(root);
         }
 
         protected override void ProcessImport(Import import)
@@ -279,6 +265,123 @@ namespace Code_Translater.Serializers
         protected override void ProcessNumber(Number number)
         {
             stringBuilder.Append(number.Value);
+        }
+
+        protected override void ProcessBreak()
+        {
+            stringBuilder.Append("break");
+            NeedsNewLine = true;
+        }
+
+        protected override void ProcessIf(If @if)
+        {
+            stringBuilder.Append("if ");
+            stringBuilder.Append('(');
+            Process(@if.Expression);
+
+            stringBuilder.Append(')');
+            stringBuilder.AppendLine();
+
+            ProcessNodeContainer(@if);
+        }
+
+        protected override void ProcessWhile(While @while)
+        {
+            stringBuilder.Append("while ");
+            stringBuilder.Append('(');
+            Process(@while.Expression);
+
+            stringBuilder.Append(')');
+            stringBuilder.AppendLine();
+
+            ProcessNodeContainer(@while);
+        }
+
+        private void ProcessNodeContainer(INodeContainer nodeContainer)
+        {
+            if(nodeContainer is Root == false)
+            {
+                AddIndent();
+
+                stringBuilder.Append("{");
+                NeedsNewLine = true;
+
+                Indent++;
+            }
+
+            ScopedVariabies.Push(new List<string>());
+
+            foreach (Node node in nodeContainer.Children)
+            {
+                Process(node);
+
+                if(node is INodeContainer == false && node is Comment == false && node is BlankLine == false)
+                {
+                    stringBuilder.Append(";");
+                }
+
+                NeedsNewLine = true;
+            }
+
+            ScopedVariabies.Pop();
+
+            if (nodeContainer is Root == false)
+            {
+                stringBuilder.AppendLine();
+                Indent--;
+
+                AddIndent();
+                stringBuilder.Append("}");
+                NeedsNewLine = true;
+            }
+        }
+
+        protected override void ProcessBooleanLiteral(BooleanLiteral booleanLiteral)
+        {
+            stringBuilder.Append(booleanLiteral.Value.ToString().ToLower());
+        }
+
+        protected override void ProcessMultipleAssignment(MultipleAssignment multipleAssignment)
+        {
+            //multiple assignment should have been stripped out by a transformer
+            throw new Exception();
+        }
+
+        protected override void ProcessTupleNode(TupleNode tupleNode)
+        {
+            IEnumerator<Node> nodes = tupleNode.Values.GetEnumerator();
+
+            nodes.MoveNext();
+            
+            while (true)
+            {
+                Process(nodes.Current);
+
+                if (nodes.MoveNext())
+                {
+                    stringBuilder.Append(", ");
+                }
+                else
+                {
+                    break;
+                }
+            }
+        }
+
+        protected override void ProcessStringLiteral(StringLiteral stringLiteral)
+        {
+            stringBuilder.Append(stringLiteral.Value);
+        }
+
+        protected override void ProcessEquality(Equality equality)
+        {
+            Process(equality.Left);
+
+            stringBuilder.Append(' ');
+            stringBuilder.Append(equality.Operator);
+            stringBuilder.Append(' ');
+
+            Process(equality.Right);
         }
     }
 }

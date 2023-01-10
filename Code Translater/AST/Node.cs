@@ -6,5 +6,6 @@ namespace Code_Translater.AST
 {
     public abstract class Node
     {
+        public Comment InlineComment = null;
     }
 }

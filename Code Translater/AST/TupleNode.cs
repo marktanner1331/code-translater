@@ -4,8 +4,8 @@ using System.Text;
 
 namespace Code_Translater.AST
 {
-    public interface INodeContainer
+    public class TupleNode : Node
     {
-        List<Node> Children { get; set; }
+        public List<Node> Values = new List<Node> ();
     }
 }

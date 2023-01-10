@@ -13,6 +13,7 @@ namespace Code_Translater.Tokenizers
         PUNCTUATION,
         NEW_LINE,
         INDENT,
-        END_OF_FILE
+        END_OF_FILE,
+        STRING_LITERAL
     }
 }

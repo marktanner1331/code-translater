@@ -88,6 +88,8 @@ namespace Code_Translater.Tokenizers
         /// </summary>
         public Token ReadToken()
         {
+            long temp = Pointer - Buffer;
+
             if(Pointer == End)
             {
                 return new Token("", TokenType.END_OF_FILE);
@@ -152,12 +154,7 @@ namespace Code_Translater.Tokenizers
 
                 if (":,=.-+/*#%".Contains(c))
                 {
-                    Pointer++;
-                    return new Token
-                    {
-                        Value = c.ToString(),
-                        Type = TokenType.PUNCTUATION
-                    };
+                    return ReadPunctuation();
                 }
 
                 if (c == '\r' || c == '\n')
@@ -171,11 +168,39 @@ namespace Code_Translater.Tokenizers
                     return new Token("", TokenType.END_OF_FILE);
                 }
 
+                if(c == '"' || c == '\'')
+                {
+                    return ReadStringLiteral();
+                }
+
                 throw new NotImplementedException();
             };
 
             MostRecentToken = inner();
             return MostRecentToken;
+        }
+
+        protected virtual Token ReadPunctuation()
+        {
+            char* start = Pointer;
+            Pointer++;
+
+            while (Pointer != End)
+            {
+                char c = *Pointer;
+                if (!":,=.-+/*#%".Contains(c))
+                {
+                    break;
+                }
+
+                Pointer++;
+            }
+
+            return new Token
+            {
+                Value = new string(start, 0, (int)(Pointer - start)),
+                Type = TokenType.PUNCTUATION
+            };
         }
 
         protected virtual Token ReadIndent()
@@ -255,6 +280,31 @@ namespace Code_Translater.Tokenizers
             {
                 Value = new string(start, 0, (int)(Pointer - start)),
                 Type = TokenType.ALPHA_NUMERIC
+            };
+        }
+
+        protected virtual Token ReadStringLiteral()
+        {
+            char* start = Pointer;
+            char quoteLetter = *Pointer;
+
+            Pointer++;
+
+            while (Pointer != End)
+            {
+                char c = *Pointer;
+                Pointer++;
+
+                if (c == quoteLetter)
+                {
+                    break;
+                }
+            }
+
+            return new Token
+            {
+                Value = new string(start, 0, (int)(Pointer - start)),
+                Type = TokenType.STRING_LITERAL
             };
         }
 

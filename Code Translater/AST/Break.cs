@@ -4,8 +4,7 @@ using System.Text;
 
 namespace Code_Translater.AST
 {
-    public interface INodeContainer
+    public class Break : Node
     {
-        List<Node> Children { get; set; }
     }
 }

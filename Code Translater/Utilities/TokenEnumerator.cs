@@ -41,7 +41,7 @@ namespace Code_Translater.Utilities
             if(state is TokenEnumeratorState enumeratorState)
             {
                 this.Token = enumeratorState.Token;
-                this.tokenizer.RestoreState(state);
+                this.tokenizer.RestoreState(enumeratorState.TokenizerState);
             }
             else
             {
