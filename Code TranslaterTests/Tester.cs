@@ -15,7 +15,7 @@ namespace Code_TranslaterTests
 {
     public class Tester
     {
-        private static string ScriptsFolder = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location) + "/Scripts/";
+        private static string ScriptsFolder = @"C:\Users\Home\Documents\code-translater\Code TranslaterTests\Scripts\";
 
         public static Root Parse(Language input, int scriptName)
         {
@@ -28,10 +28,12 @@ namespace Code_TranslaterTests
 
         public static void SerializeTest(Language input, Language output, int scriptName)
         {
-            string sourceCodePath = ScriptsFolder + GetFolderName(input) + "/" + scriptName + "." + GetExtension(input);
+            string codePath = ScriptsFolder + GetFolderName(input) + "/";
+
+            string sourceCodePath = codePath + scriptName + "/" + scriptName + "." + GetExtension(input);
             string sourceCode = File.ReadAllText(sourceCodePath);
 
-            string destCodePath = ScriptsFolder + GetFolderName(output) + "/" + scriptName + "." + GetExtension(output);
+            string destCodePath = codePath + scriptName + "/" + scriptName + "." + GetExtension(output);
             string destCode = File.ReadAllText(destCodePath);
 
             IParser parser = GetParser(input);

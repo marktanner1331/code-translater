@@ -49,9 +49,19 @@ namespace Code_Translater.Transformers
             return null;
         }
 
+        protected override string ProcessListLiteral(ListLiteral listLiteral)
+        {
+            foreach (Node value in listLiteral.Values)
+            {
+                Process(value);
+            }
+
+            return "List<Object>";
+        }
+
         protected override string ProcessExpression(Expression expression)
         {
-            foreach(Node coefficient in expression.Coefficients)
+            foreach (Node coefficient in expression.Coefficients)
             {
                 if (coefficient is Variable variable && UnresolvedTypes.ContainsKey(variable.Name))
                 {
@@ -65,6 +75,20 @@ namespace Code_Translater.Transformers
             }
 
             return "float";
+        }
+
+        protected override string ProcessClass(Class @class)
+        {
+            Scope.Push(new Dictionary<string, IHasType>());
+
+            foreach (var node in @class.Children)
+            {
+                Process(node);
+            }
+
+            Scope.Pop();
+
+            return null;
         }
 
         protected override string ProcessFunction(Function function)
@@ -115,7 +139,7 @@ namespace Code_Translater.Transformers
                 }
             }
 
-            if(PackageMapper.TryGetReturnType(functionCall.PackageName, functionCall.FunctionName, out string type))
+            if (PackageMapper.TryGetReturnType(functionCall.PackageName, functionCall.FunctionName, out string type))
             {
                 return type;
             }
@@ -137,7 +161,7 @@ namespace Code_Translater.Transformers
         protected override string ProcessReturn(Return @return)
         {
             string type = Process(@return.Value);
-            if(CurrentFunction != null && CurrentFunction.ReturnType == null)
+            if (CurrentFunction != null && CurrentFunction.ReturnType == null)
             {
                 CurrentFunction.ReturnType = type;
             }
@@ -181,6 +205,38 @@ namespace Code_Translater.Transformers
         }
 
         protected override string ProcessWhile(While @while)
+        {
+            return null;
+        }
+
+        protected override string ProcessTuple(TupleNode tupleNode)
+        {
+            foreach (Node value in tupleNode.Values)
+            {
+                Process(value);
+            }
+
+            return null;
+        }
+
+        protected override string ProcessStringLiteral(StringLiteral stringLiteral)
+        {
+            return "string";
+        }
+
+        protected override string ProcessMultipleAssignment(MultipleAssignment multipleAssignment)
+        {
+            foreach(var name in multipleAssignment.VariableNames)
+            {
+                Scope.Peek().Add(name, multipleAssignment);
+                UnresolvedTypes.Add(name, multipleAssignment);
+            }
+
+            Process(multipleAssignment.RValue);
+            return null;
+        }
+
+        protected override string ProcessNull()
         {
             return null;
         }

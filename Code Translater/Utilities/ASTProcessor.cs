@@ -68,11 +68,23 @@ namespace Code_Translater.Utilities
                 case StringLiteral stringLiteral:
                     ProcessStringLiteral(stringLiteral);
                     break;
+                case Class @class:
+                    ProcessClass(@class);
+                    break;
+                case ListLiteral listLiteral:
+                    ProcessListLiteral(listLiteral);
+                    break;
+                case Null @null:
+                    ProcessNull();
+                    break;
                 default:
                     throw new NotImplementedException();
             }
         }
 
+        protected abstract void ProcessNull();
+        protected abstract void ProcessListLiteral(ListLiteral listLiteral);
+        protected abstract void ProcessClass(Class @class);
         protected abstract void ProcessStringLiteral(StringLiteral stringLiteral);
         protected abstract void ProcessTupleNode(TupleNode tupleNode);
         protected abstract void ProcessMultipleAssignment(MultipleAssignment multipleAssignment);
@@ -130,11 +142,29 @@ namespace Code_Translater.Utilities
                     return ProcessIf(@if);
                 case Break _:
                     return ProcessBreak();
+                case TupleNode tupleNode:
+                    return ProcessTuple(tupleNode);
+                case StringLiteral stringLiteral:
+                    return ProcessStringLiteral(stringLiteral);
+                case MultipleAssignment multipleAssignment:
+                    return ProcessMultipleAssignment(multipleAssignment);
+                case Class @class:
+                    return ProcessClass(@class);
+                case ListLiteral listLiteral:
+                    return ProcessListLiteral(listLiteral);
+                case Null @null:
+                    return ProcessNull();
                 default:
                     throw new NotImplementedException();
             }
         }
 
+        protected abstract T ProcessNull();
+        protected abstract T ProcessListLiteral(ListLiteral literal);
+        protected abstract T ProcessClass(Class @class);
+        protected abstract T ProcessMultipleAssignment(MultipleAssignment multipleAssignment);
+        protected abstract T ProcessStringLiteral(StringLiteral stringLiteral);
+        protected abstract T ProcessTuple(TupleNode tupleNode);
         protected abstract T ProcessBreak();
         protected abstract T ProcessIf(If @if);
         protected abstract T ProcessWhile(While @while);

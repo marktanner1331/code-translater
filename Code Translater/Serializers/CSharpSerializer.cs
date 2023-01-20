@@ -15,16 +15,21 @@ namespace Code_Translater.Serializers
         private bool NeedsNewLine = false;
 
         private Stack<List<string>> ScopedVariabies;
+        private Stack<INodeContainer> scopeStack;
 
         public string Serialize(Node root)
         {
             new AddTypesTransformer().AddTypes(root);
             new RemoveMultipleAssignment().RemoveMultipleAssignments(root);
             new RemoveImports().Remove(root);
+            MultiCleaner multiCleaner = new MultiCleaner();
+            multiCleaner.RemoveTripleQuotedStrings = true;
+            multiCleaner.Clean(root);
 
             stringBuilder = new StringBuilder();
 
             ScopedVariabies = new Stack<List<string>>();
+            scopeStack = new Stack<INodeContainer>();
 
             //outer 'file-level' scope
             ScopedVariabies.Push(new List<string>());
@@ -36,6 +41,11 @@ namespace Code_Translater.Serializers
 
         private bool HasVariableInScope(string name)
         {
+            if(name.StartsWith("this."))
+            {
+                name = name.Substring(5);
+            }
+
             return ScopedVariabies.SelectMany(x => x).Any(x => x == name);
         }
 
@@ -146,6 +156,14 @@ namespace Code_Translater.Serializers
                             break;
                     }
                     break;
+                case "Console":
+                    switch(functionCall.FunctionName)
+                    {
+                        case "print":
+                            functionCall.FunctionName = "WriteLine";
+                            break;
+                    }
+                    break;
             }
         }
 
@@ -204,7 +222,16 @@ namespace Code_Translater.Serializers
 
         protected override void ProcessFunction(Function function)
         {            
-            stringBuilder.Append("static ");
+            if(function.ReturnType == null)
+            {
+                function.ReturnType = "void";
+            }
+
+            if(scopeStack.Any(x => x is Class) == false)
+            {
+                stringBuilder.Append("static ");
+            }
+            
             stringBuilder.Append(function.ReturnType);
             stringBuilder.Append(" ");
             stringBuilder.Append(function.Name);
@@ -298,6 +325,7 @@ namespace Code_Translater.Serializers
                 Indent++;
             }
 
+            scopeStack.Push(nodeContainer);
             ScopedVariabies.Push(new List<string>());
 
             foreach (Node node in nodeContainer.Children)
@@ -313,6 +341,7 @@ namespace Code_Translater.Serializers
             }
 
             ScopedVariabies.Pop();
+            scopeStack.Pop();
 
             if (nodeContainer is Root == false)
             {
@@ -338,28 +367,76 @@ namespace Code_Translater.Serializers
 
         protected override void ProcessTupleNode(TupleNode tupleNode)
         {
-            IEnumerator<Node> nodes = tupleNode.Values.GetEnumerator();
-
-            nodes.MoveNext();
-            
-            while (true)
+            if(tupleNode.Values.Count > 0)
             {
-                Process(nodes.Current);
+                IEnumerator<Node> nodes = tupleNode.Values.GetEnumerator();
 
-                if (nodes.MoveNext())
+                nodes.MoveNext();
+
+                while (true)
                 {
-                    stringBuilder.Append(", ");
+                    Process(nodes.Current);
+
+                    if (nodes.MoveNext())
+                    {
+                        stringBuilder.Append(", ");
+                    }
+                    else
+                    {
+                        break;
+                    }
                 }
-                else
-                {
-                    break;
-                }
+            }
+            else
+            {
+                stringBuilder.Append("null");
             }
         }
 
         protected override void ProcessStringLiteral(StringLiteral stringLiteral)
         {
             stringBuilder.Append(stringLiteral.Value);
+        }
+
+        protected override void ProcessListLiteral(ListLiteral listLiteral)
+        {
+            stringBuilder.Append("new List<object>()");
+
+            if(listLiteral.Values.Count > 0)
+            {
+                stringBuilder.Append(" { ");
+
+                IEnumerator<Node> nodes = listLiteral.Values.GetEnumerator();
+
+                nodes.MoveNext();
+
+                while (true)
+                {
+                    Process(nodes.Current);
+
+                    if (nodes.MoveNext())
+                    {
+                        stringBuilder.Append(", ");
+                    }
+                    else
+                    {
+                        break;
+                    }
+                }
+
+                stringBuilder.Append(" }");
+            }
+        }
+
+        protected override void ProcessClass(Class @class)
+        {
+            stringBuilder.AppendLine("class " + @class.Name);
+            ProcessNodeContainer(@class);
+        }
+
+        protected override void ProcessNull()
+        {
+            stringBuilder.Append("null");   
         }
     }
 }

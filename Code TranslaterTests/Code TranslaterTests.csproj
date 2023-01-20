@@ -9,7 +9,7 @@
 	</PropertyGroup>
 
 	<ItemGroup>
-		<Compile Remove="Scripts\CSharp\*.cs" />
+		<Compile Remove="Scripts\**\*.cs" />
 	</ItemGroup>
 
 	<ItemGroup>
@@ -24,13 +24,13 @@
 	</ItemGroup>
 
 	<ItemGroup>
-		<None Include="Scripts\CSharp\*.*">
+		<None Update="Scripts\Python\1\1.cs">
 			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 		</None>
 	</ItemGroup>
 
 	<ItemGroup>
-		<None Update="Scripts\Python\*.*">
+		<None Update="Scripts\**\*.*">
 			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 		</None>
 	</ItemGroup>

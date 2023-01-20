@@ -13,7 +13,7 @@ namespace Code_Translater.Tokenizers
 
         public readonly string Code;
         private char* Buffer;
-        private char* Pointer;
+        protected char* Pointer;
         protected readonly char* End;
 
         private Token MostRecentToken = null;
@@ -127,7 +127,7 @@ namespace Code_Translater.Tokenizers
                     return ReadNumber();
                 }
 
-                if (char.IsLetter(c))
+                if (char.IsLetter(c) || c == '_')
                 {
                     return ReadAlphaNumeric();
                 }
@@ -152,7 +152,7 @@ namespace Code_Translater.Tokenizers
                     };
                 }
 
-                if (":,=.-+/*#%".Contains(c))
+                if (":,=.-+/*#%><".Contains(c))
                 {
                     return ReadPunctuation();
                 }
@@ -188,7 +188,7 @@ namespace Code_Translater.Tokenizers
             while (Pointer != End)
             {
                 char c = *Pointer;
-                if (!":,=.-+/*#%".Contains(c))
+                if (!":,=.-+/*#%><".Contains(c))
                 {
                     break;
                 }
