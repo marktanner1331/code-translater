@@ -118,66 +118,66 @@ namespace Code_Translater.Tokenizers
                 }
             }
             
-            Token inner()
-            {
-                char c = *Pointer;
-
-                if (char.IsDigit(c))
-                {
-                    return ReadNumber();
-                }
-
-                if (char.IsLetter(c) || c == '_')
-                {
-                    return ReadAlphaNumeric();
-                }
-
-                if ("{[(".Contains(c))
-                {
-                    Pointer++;
-                    return new Token
-                    {
-                        Value = c.ToString(),
-                        Type = TokenType.OPEN_BRACKET
-                    };
-                }
-
-                if ("}])".Contains(c))
-                {
-                    Pointer++;
-                    return new Token
-                    {
-                        Value = c.ToString(),
-                        Type = TokenType.CLOSE_BRACKET
-                    };
-                }
-
-                if (":,=.-+/*#%><".Contains(c))
-                {
-                    return ReadPunctuation();
-                }
-
-                if (c == '\r' || c == '\n')
-                {
-                    return ReadNewLine();
-                }
-
-                if (c == '\0')
-                {
-                    Pointer++;
-                    return new Token("", TokenType.END_OF_FILE);
-                }
-
-                if(c == '"' || c == '\'')
-                {
-                    return ReadStringLiteral();
-                }
-
-                throw new NotImplementedException();
-            };
-
-            MostRecentToken = inner();
+            MostRecentToken = ReadTokenInner();
             return MostRecentToken;
+        }
+
+        protected virtual Token ReadTokenInner()
+        {
+            char c = *Pointer;
+
+            if (char.IsDigit(c))
+            {
+                return ReadNumber();
+            }
+
+            if (char.IsLetter(c) || c == '_')
+            {
+                return ReadAlphaNumeric();
+            }
+
+            if ("{[(".Contains(c))
+            {
+                Pointer++;
+                return new Token
+                {
+                    Value = c.ToString(),
+                    Type = TokenType.OPEN_BRACKET
+                };
+            }
+
+            if ("}])".Contains(c))
+            {
+                Pointer++;
+                return new Token
+                {
+                    Value = c.ToString(),
+                    Type = TokenType.CLOSE_BRACKET
+                };
+            }
+
+            if (":,=.-+/*#%><".Contains(c))
+            {
+                return ReadPunctuation();
+            }
+
+            if (c == '\r' || c == '\n')
+            {
+                return ReadNewLine();
+            }
+
+            if (c == '\0')
+            {
+                Pointer++;
+                return new Token("", TokenType.END_OF_FILE);
+            }
+
+            if (c == '"' || c == '\'')
+            {
+                return ReadStringLiteral();
+            }
+
+            throw new NotImplementedException();
         }
 
         protected virtual Token ReadPunctuation()
@@ -258,7 +258,7 @@ namespace Code_Translater.Tokenizers
             char* start = Pointer;
             Pointer++;
             
-            while (true)
+            while (Pointer != End)
             {
                 char c = *Pointer;
                 if(c > 128)

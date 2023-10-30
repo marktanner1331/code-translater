@@ -3,6 +3,7 @@ using Code_Translater.Utilities;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
 using System.Text;
 
 namespace Code_Translater.Transformers
@@ -40,26 +41,29 @@ namespace Code_Translater.Transformers
 
         private IEnumerable<Node> RewriteMultipleAssignment(MultipleAssignment multipleAssignment)
         {
-            string new_name = string.Join("", multipleAssignment.VariableNames);
+            string new_name = string.Join("", multipleAssignment.LValues.Select(x => (x.LValue as Variable).Name));
             yield return new Assignment
             {
                 InlineComment = multipleAssignment.InlineComment,
-                Name = new_name,
+                LValue = new Variable
+                {
+                    Name = new_name
+                },
                 RValue = multipleAssignment.RValue,
-                Type = multipleAssignment.Type
+                Type = null
             };
 
-            foreach(string variable in multipleAssignment.VariableNames)
+            foreach(Assignment assignment in multipleAssignment.LValues)
             {
                 yield return new Assignment
                 {
                     InlineComment = null,
-                    Name = variable,
+                    LValue = assignment.LValue,
                     RValue = new Variable
                     {
-                        Name = new_name + "." + variable
+                        Name = new_name + "." + (assignment.LValue as Variable).Name
                     },
-                    Type = null
+                    Type = assignment.Type
                 };
             }
         }

@@ -10,6 +10,31 @@ namespace Code_Translater.Tokenizers
         {
         }
 
+        protected override Token ReadTokenInner()
+        {
+            if(End - Pointer > 2)
+            {
+                if((*Pointer == 'f' || *Pointer == 'F') && Pointer[1] == '"')
+                {
+                    char c = Pointer[1];
+                    return ReadInterpolatedString();
+                }
+            }
+
+            return base.ReadTokenInner();
+        }
+
+        private Token ReadInterpolatedString()
+        {
+            char c = *Pointer;
+
+            Pointer++;
+            Token token = base.ReadStringLiteral();
+
+            token.Value = c + token.Value;
+            return token;
+        }
+
         protected override Token ReadStringLiteral()
         {
             char* start = Pointer;

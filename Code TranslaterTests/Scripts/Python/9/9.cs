@@ -6,21 +6,21 @@ class Solution
 	{
 		void helper(object root)
 		{
-			if (root.left == null && root.right)
+			if (root.left is null && root.right)
 			{
 				this.ans.append(root.right.val);
 				return helper(root.right);
 			}
-			if (root.left && root.right == null)
+			if (root.left && root.right is null)
 			{
 				this.ans.append(root.left.val);
 				return helper(root.left);
 			}
 			if (root.left && root.right)
 			{
-				return helper(root.left), helper(root.right);
+				return new List<object> { helper(root.left), helper(root.right) };
 			}
-			if (root.left == null && root.right == null)
+			if (root.left is null && root.right is null)
 			{
 				return;
 			}

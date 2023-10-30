@@ -33,9 +33,9 @@ static void send()
 
 static void main()
 {
-	var x = threading.Thread(recv, null);
+	var x = threading.Thread(target = recv, args = null);
 	x.start();
-	var y = threading.Thread(send, null);
+	var y = threading.Thread(target = send, args = null);
 	y.start();
 	
 	Console.WriteLine("started threads!");

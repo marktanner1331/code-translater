@@ -23,12 +23,17 @@ namespace Code_Translater.Transformers
 
         protected override string ProcessAssignment(Assignment assignment)
         {
-            if (UnresolvedTypes.ContainsKey(assignment.Name))
+            if(assignment.LValue is Variable variable)
             {
-                throw new NotImplementedException();
+                if (UnresolvedTypes.ContainsKey(variable.Name))
+                {
+                    //throw new NotImplementedException();
+                }
+                else
+                {
+                    Scope.Peek().Add(variable.Name, assignment);
+                }
             }
-
-            Scope.Peek().Add(assignment.Name, assignment);
 
             string type = Process(assignment.RValue);
 
@@ -38,7 +43,10 @@ namespace Code_Translater.Transformers
             }
             else
             {
-                UnresolvedTypes.Add(assignment.Name, assignment);
+                if (assignment.LValue is Variable variable2 && UnresolvedTypes.ContainsKey(variable2.Name) == false)
+                {
+                    UnresolvedTypes.Add(variable2.Name, assignment);
+                }
             }
 
             return type;
@@ -124,25 +132,25 @@ namespace Code_Translater.Transformers
 
         protected override string ProcessFunctionCall(FunctionCall functionCall)
         {
-            for (int i = 0; i < functionCall.Parameters.Count; i++)
-            {
-                var param = functionCall.Parameters[i];
+            //for (int i = 0; i < functionCall.Parameters.Count; i++)
+            //{
+            //    var param = functionCall.Parameters[i];
 
-                if (param.Value is Variable variable && UnresolvedTypes.ContainsKey(variable.Name))
-                {
-                    IHasType Unresolved = UnresolvedTypes[variable.Name];
+            //    if (param.Value is Variable variable && UnresolvedTypes.ContainsKey(variable.Name))
+            //    {
+            //        IHasType Unresolved = UnresolvedTypes[variable.Name];
 
-                    if (PackageMapper.TryGetTypeForParameter(functionCall.PackageName, functionCall.FunctionName, i, out string returnType))
-                    {
-                        Unresolved.Type = returnType;
-                    }
-                }
-            }
+            //        if (PackageMapper.TryGetTypeForParameter(functionCall.PackageName, functionCall.FunctionName, i, out string returnType))
+            //        {
+            //            Unresolved.Type = returnType;
+            //        }
+            //    }
+            //}
 
-            if (PackageMapper.TryGetReturnType(functionCall.PackageName, functionCall.FunctionName, out string type))
-            {
-                return type;
-            }
+            //if (PackageMapper.TryGetReturnType(functionCall.PackageName, functionCall.FunctionName, out string type))
+            //{
+            //    return type;
+            //}
 
             return null;
         }
@@ -226,10 +234,16 @@ namespace Code_Translater.Transformers
 
         protected override string ProcessMultipleAssignment(MultipleAssignment multipleAssignment)
         {
-            foreach(var name in multipleAssignment.VariableNames)
+            foreach(var lValue in multipleAssignment.LValues)
             {
-                Scope.Peek().Add(name, multipleAssignment);
-                UnresolvedTypes.Add(name, multipleAssignment);
+                if(lValue.LValue is Variable variable)
+                {
+                    if (Scope.Peek().ContainsKey(variable.Name) == false && UnresolvedTypes.ContainsKey(variable.Name) == false)
+                    {
+                        Scope.Peek().Add(variable.Name, lValue);
+                        UnresolvedTypes.Add(variable.Name, lValue);
+                    }
+                }
             }
 
             Process(multipleAssignment.RValue);
@@ -239,6 +253,61 @@ namespace Code_Translater.Transformers
         protected override string ProcessNull()
         {
             return null;
+        }
+
+        protected override string ProcessProperty(Property property)
+        {
+            if(property.IsVariablePlusFunctionCall(out string variable, out FunctionCall functionCall))
+            {
+                for (int i = 0; i < functionCall.Parameters.Count; i++)
+                {
+                    var param = functionCall.Parameters[i];
+
+                    if (param.Value is Variable parameter && UnresolvedTypes.ContainsKey(parameter.Name))
+                    {
+                        IHasType Unresolved = UnresolvedTypes[parameter.Name];
+
+                        if (PackageMapper.TryGetTypeForParameter(variable, functionCall.FunctionName, i, out string returnType))
+                        {
+                            Unresolved.Type = returnType;
+                        }
+                    }
+                }
+
+                if (PackageMapper.TryGetReturnType(variable, functionCall.FunctionName, out string type))
+                {
+                    return type;
+                }
+            }
+
+
+
+            return null;
+        }
+
+        protected override string ProcessArrayAccessor(ArrayAccessor arrayAccessor)
+        {
+            return null;
+        }
+
+        protected override string ProcessBooleanLiteral(BooleanLiteral booleanLiteral)
+        {
+            return "bool";
+        }
+
+        protected override string ProcessInterpolatedStringLiteral(InterpolatedStringLiteral interpolatedStringLiteral)
+        {
+            return "string";
+        }
+
+        protected override string ProcessForEach(ForEach forEach)
+        {
+            return null;
+        }
+
+        protected override string ProcessDictionaryNode(DictionaryLiteral dictionaryNode)
+        {
+            return "Dictionary<object, object>";
         }
     }
 }

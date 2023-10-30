@@ -24,6 +24,8 @@ namespace Code_Translater.Serializers
             new RemoveImports().Remove(root);
             MultiCleaner multiCleaner = new MultiCleaner();
             multiCleaner.RemoveTripleQuotedStrings = true;
+            multiCleaner.RemoveSingleQuotedStrings = true;
+            multiCleaner.DeconstructTupleFunctionParameters = true;
             multiCleaner.Clean(root);
 
             stringBuilder = new StringBuilder();
@@ -41,7 +43,7 @@ namespace Code_Translater.Serializers
 
         private bool HasVariableInScope(string name)
         {
-            if(name.StartsWith("this."))
+            if (name.StartsWith("this."))
             {
                 name = name.Substring(5);
             }
@@ -51,7 +53,7 @@ namespace Code_Translater.Serializers
 
         protected override void Process(Node node)
         {
-            if(NeedsNewLine)
+            if (NeedsNewLine)
             {
                 stringBuilder.AppendLine();
                 AddIndent();
@@ -86,10 +88,10 @@ namespace Code_Translater.Serializers
             coefficients.MoveNext();
 
             processCoefficient(coefficients.Current);
-            
+
             IEnumerator<string> operators = expression.Operators.GetEnumerator();
 
-            while(coefficients.MoveNext() && operators.MoveNext())
+            while (coefficients.MoveNext() && operators.MoveNext())
             {
                 stringBuilder.Append(" " + operators.Current + " ");
                 processCoefficient(coefficients.Current);
@@ -110,7 +112,7 @@ namespace Code_Translater.Serializers
         {
             stringBuilder.Append("return");
 
-            if(@return.Value != null)
+            if (@return.Value != null)
             {
                 stringBuilder.Append(" ");
                 Process(@return.Value);
@@ -124,12 +126,28 @@ namespace Code_Translater.Serializers
             stringBuilder.Append(variable.Name);
         }
 
-        private void MakeFunctionCallNonGeneric(FunctionCall functionCall)
+        private void MakeFunctionCallNonGeneric(Property property)
         {
-            switch(functionCall.PackageName)
+            if (property.Values.Count < 2)
+            {
+                return;
+            }
+
+            var packageVariableNames = property.Values.Take(property.Values.Count - 1).ToList();
+            if (packageVariableNames.All(x => x is Variable) == false)
+            {
+                return;
+            }
+
+            string packageName = String.Join(".", packageVariableNames.Select(x => ((Variable)x).Name));
+            string newPackageName = packageName;
+
+            FunctionCall functionCall = property.Values.Last() as FunctionCall;
+
+            switch (packageName)
             {
                 case "Enumerable":
-                    switch(functionCall.FunctionName)
+                    switch (functionCall.FunctionName)
                     {
                         case "min":
                             functionCall.FunctionName = "Min";
@@ -140,13 +158,13 @@ namespace Code_Translater.Serializers
                     }
                     break;
                 case "ParseOrCast":
-                    switch(functionCall.FunctionName)
+                    switch (functionCall.FunctionName)
                     {
                         case "int":
-                            if(functionCall.Parameters.First().Type == null)
+                            if (functionCall.Parameters.First().Type == null)
                             {
                                 //assume it's a string
-                                functionCall.PackageName = "Int";
+                                newPackageName = "Int";
                                 functionCall.FunctionName = "Parse";
                             }
                             else
@@ -157,7 +175,7 @@ namespace Code_Translater.Serializers
                     }
                     break;
                 case "Console":
-                    switch(functionCall.FunctionName)
+                    switch (functionCall.FunctionName)
                     {
                         case "print":
                             functionCall.FunctionName = "WriteLine";
@@ -165,17 +183,16 @@ namespace Code_Translater.Serializers
                     }
                     break;
             }
+
+            if(packageName != newPackageName)
+            {
+                property.Values = newPackageName.Split('.').Select(x => (Node)new Variable { Name = x }).ToList();
+                property.Values.Add(functionCall);
+            }
         }
 
         protected override void ProcessFunctionCall(FunctionCall functionCall)
         {
-            MakeFunctionCallNonGeneric(functionCall);
-
-            if(string.IsNullOrEmpty(functionCall.PackageName) == false)
-            {
-                stringBuilder.Append(functionCall.PackageName + ".");
-            }
-
             stringBuilder.Append(functionCall.FunctionName);
 
             stringBuilder.Append('(');
@@ -186,6 +203,11 @@ namespace Code_Translater.Serializers
             {
                 while (true)
                 {
+                    if(parameters.Current.Name != null)
+                    {
+                        stringBuilder.Append(parameters.Current.Name + " = ");
+                    }
+
                     Process(parameters.Current.Value);
 
                     if (parameters.MoveNext())
@@ -204,14 +226,17 @@ namespace Code_Translater.Serializers
 
         protected override void ProcessAssignment(Assignment assignment)
         {
-            if(HasVariableInScope(assignment.Name) == false)
+            if (assignment.LValue is Variable variable)
             {
-                stringBuilder.Append(assignment.Type ?? "var");
-                stringBuilder.Append(" ");
-                ScopedVariabies.Peek().Add(assignment.Name);
+                if (HasVariableInScope(variable.Name) == false)
+                {
+                    stringBuilder.Append(assignment.Type ?? "var");
+                    stringBuilder.Append(" ");
+                    ScopedVariabies.Peek().Add(variable.Name);
+                }
             }
 
-            stringBuilder.Append(assignment.Name);
+            Process(assignment.LValue);
 
             stringBuilder.Append(" = ");
 
@@ -221,26 +246,26 @@ namespace Code_Translater.Serializers
         }
 
         protected override void ProcessFunction(Function function)
-        {            
-            if(function.ReturnType == null)
+        {
+            if (function.ReturnType == null)
             {
                 function.ReturnType = "void";
             }
 
-            if(scopeStack.Any(x => x is Class) == false)
+            if (scopeStack.Any(x => x is Class) == false)
             {
                 stringBuilder.Append("static ");
             }
-            
+
             stringBuilder.Append(function.ReturnType);
             stringBuilder.Append(" ");
             stringBuilder.Append(function.Name);
             stringBuilder.Append('(');
 
             List<string> paramsString = new List<string>();
-            foreach(FunctionParameter param in function.Parameters)
+            foreach (FunctionParameter param in function.Parameters)
             {
-                if(param.Type == null)
+                if (param.Type == null)
                 {
                     param.Type = "object";
                 }
@@ -315,7 +340,7 @@ namespace Code_Translater.Serializers
 
         private void ProcessNodeContainer(INodeContainer nodeContainer)
         {
-            if(nodeContainer is Root == false)
+            if (nodeContainer is Root == false)
             {
                 AddIndent();
 
@@ -332,9 +357,18 @@ namespace Code_Translater.Serializers
             {
                 Process(node);
 
-                if(node is INodeContainer == false && node is Comment == false && node is BlankLine == false)
+                if (node is INodeContainer == false && node is Comment == false && node is BlankLine == false)
                 {
                     stringBuilder.Append(";");
+                }
+
+                if (node.InlineComment != null)
+                {
+                    stringBuilder.Append(" ");
+
+                    NeedsNewLine = false;
+                    Process(node.InlineComment);
+                    NeedsNewLine = true;
                 }
 
                 NeedsNewLine = true;
@@ -367,8 +401,10 @@ namespace Code_Translater.Serializers
 
         protected override void ProcessTupleNode(TupleNode tupleNode)
         {
-            if(tupleNode.Values.Count > 0)
+            if (tupleNode.Values.Count > 0)
             {
+                stringBuilder.Append("new List<object> { ");
+
                 IEnumerator<Node> nodes = tupleNode.Values.GetEnumerator();
 
                 nodes.MoveNext();
@@ -386,6 +422,8 @@ namespace Code_Translater.Serializers
                         break;
                     }
                 }
+
+                stringBuilder.Append(" }");
             }
             else
             {
@@ -402,7 +440,7 @@ namespace Code_Translater.Serializers
         {
             stringBuilder.Append("new List<object>()");
 
-            if(listLiteral.Values.Count > 0)
+            if (listLiteral.Values.Count > 0)
             {
                 stringBuilder.Append(" { ");
 
@@ -436,7 +474,130 @@ namespace Code_Translater.Serializers
 
         protected override void ProcessNull()
         {
-            stringBuilder.Append("null");   
+            stringBuilder.Append("null");
+        }
+
+        protected override void ProcessProperty(Property property)
+        {
+            if(property.Values.Last() is FunctionCall)
+            {
+                MakeFunctionCallNonGeneric(property);
+            }
+
+            IEnumerator<Node> nodes = property.Values.GetEnumerator();
+            nodes.MoveNext();
+
+            while (true)
+            {
+                if (nodes.Current is Expression)
+                {
+                    stringBuilder.Append("(");
+                    Process(nodes.Current);
+                    stringBuilder.Append(")");
+                }
+                else
+                {
+                    Process(nodes.Current);
+                }
+
+                if (nodes.MoveNext())
+                {
+                    if(nodes.Current is ArrayAccessor == false)
+                    {
+                        stringBuilder.Append(".");
+                    }
+                }
+                else
+                {
+                    break;
+                }
+            }
+        }
+
+        protected override void ProcessArrayAccessor(ArrayAccessor arrayAccessor)
+        {
+            stringBuilder.Append("[");
+            Process(arrayAccessor.Indexer);
+            stringBuilder.Append("]");
+        }
+
+        protected override void ProcessInterpolatedStringLiteral(InterpolatedStringLiteral interpolatedStringLiteral)
+        {
+            stringBuilder.Append("$");
+            stringBuilder.Append(interpolatedStringLiteral.Value);
+        }
+
+        protected override void ProcessForEach(ForEach forEach)
+        {
+            stringBuilder.Append("foreach ");
+            stringBuilder.Append('(');
+            stringBuilder.Append("var ");
+            stringBuilder.Append(forEach.VariableName);
+            stringBuilder.Append(" in ");
+            Process(forEach.Collection);
+            stringBuilder.Append(')');
+            stringBuilder.AppendLine();
+
+            ProcessNodeContainer(forEach);
+        }
+
+        protected override void ProcessDictionaryLiteral(DictionaryLiteral dictionaryNode)
+        {
+            new Dictionary<string, string>
+            {
+                { "a", "" } 
+            };
+
+            stringBuilder.AppendLine("new Dictionary<object, object>");
+            AddIndent();
+
+            stringBuilder.AppendLine("{");
+            
+            Indent++;
+
+            var values = dictionaryNode.Values.GetEnumerator();
+            values.MoveNext();
+
+            while (true)
+            {
+                AddIndent();
+                stringBuilder.Append("{ ");
+
+                Process(values.Current.Key);
+
+                stringBuilder.Append(", ");
+
+                if(values.Current.Value is DictionaryLiteral)
+                {
+                    Indent++;
+                    Process(values.Current.Value);
+                    Indent--;
+                    stringBuilder.AppendLine();
+                    AddIndent();
+                }
+                else
+                {
+                    Process(values.Current.Value);
+                }
+                
+
+                stringBuilder.Append(" }");
+
+                if (values.MoveNext())
+                {
+                    stringBuilder.AppendLine(", ");
+                }
+                else
+                {
+                    stringBuilder.AppendLine();
+                    break;
+                }
+            }
+
+            Indent--;
+            AddIndent();
+            stringBuilder.Append("}");
+            NeedsNewLine = true;
         }
     }
 }

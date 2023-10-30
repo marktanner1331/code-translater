@@ -45,7 +45,7 @@ while (true)
 	if (key == 27)
 	{
 		break;
-	}
+	} // Esc key
 }
 
 // Release video capturer

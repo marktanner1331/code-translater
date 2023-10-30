@@ -10,6 +10,8 @@ namespace Code_Translater.Transformers
     public class MultiCleaner : ASTProcessor<IEnumerable<Node>>
     {
         public bool RemoveTripleQuotedStrings = false;
+        public bool RemoveSingleQuotedStrings = false;
+        public bool DeconstructTupleFunctionParameters = false;
 
         public void Clean(Node root)
         {
@@ -29,6 +31,7 @@ namespace Code_Translater.Transformers
 
         protected override IEnumerable<Node> ProcessAssignment(Assignment assignment)
         {
+            assignment.LValue = this.Process(assignment.LValue).Single();
             assignment.RValue = this.Process(assignment.RValue).Single();
 
             yield return assignment;
@@ -81,6 +84,24 @@ namespace Code_Translater.Transformers
 
         protected override IEnumerable<Node> ProcessFunctionCall(FunctionCall functionCall)
         {
+            List<FunctionParameter> newParameters = new List<FunctionParameter>();
+            foreach (FunctionParameter functionParameter in functionCall.Parameters)
+            {
+                if(functionParameter.Value is TupleNode tuple && tuple.Values.Count > 0)
+                {
+                    newParameters.AddRange(tuple.Values.Select(x => new FunctionParameter
+                    {
+                        Value = x
+                    }));
+                }
+                else
+                {
+                    newParameters.Add(functionParameter);
+                }
+            }
+
+            functionCall.Parameters = newParameters;
+
             foreach (FunctionParameter functionParameter in functionCall.Parameters)
             {
                 functionParameter.Value = this.Process(functionParameter.Value).Single();
@@ -170,6 +191,15 @@ namespace Code_Translater.Transformers
                     stringLiteral.Value = stringLiteral.Value.Replace("\r", "\\r").Replace("\n", "\\n");
                 }
             }
+            
+            if(RemoveSingleQuotedStrings)
+            {
+                if (stringLiteral.Value.StartsWith("'"))
+                {
+                    stringLiteral.Value = stringLiteral.Value.Substring(1, stringLiteral.Value.Length - 2);
+                    stringLiteral.Value = "\"" + stringLiteral.Value + "\"";
+                }
+            }
 
             yield return stringLiteral;
         }
@@ -203,6 +233,59 @@ namespace Code_Translater.Transformers
 
             ProcessNodeContainer(@while);
             yield return @while;
+        }
+
+        protected override IEnumerable<Node> ProcessProperty(Property property)
+        {
+            List<Node> newValues = new List<Node>();
+            foreach (Node value in property.Values)
+            {
+                newValues.AddRange(this.Process(value));
+            }
+
+            if (property.Values.Count != newValues.Count)
+            {
+                throw new Exception();
+            }
+
+            property.Values = newValues;
+
+            yield return property;
+        }
+
+        protected override IEnumerable<Node> ProcessArrayAccessor(ArrayAccessor arrayAccessor)
+        {
+            arrayAccessor.Indexer = this.Process(arrayAccessor.Indexer).Single();
+            yield return arrayAccessor;
+        }
+
+        protected override IEnumerable<Node> ProcessBooleanLiteral(BooleanLiteral booleanLiteral)
+        {
+            yield return booleanLiteral;
+        }
+
+        protected override IEnumerable<Node> ProcessInterpolatedStringLiteral(InterpolatedStringLiteral interpolatedStringLiteral)
+        {
+            yield return interpolatedStringLiteral;
+        }
+
+        protected override IEnumerable<Node> ProcessForEach(ForEach forEach)
+        {
+            forEach.Collection = Process(forEach.Collection).Single();
+            ProcessNodeContainer(forEach);
+            yield return forEach;
+        }
+
+        protected override IEnumerable<Node> ProcessDictionaryNode(DictionaryLiteral dictionaryNode)
+        {
+            DictionaryLiteral newDictionary = new DictionaryLiteral();
+
+            foreach(var pair in dictionaryNode.Values)
+            {
+                newDictionary.Values[Process(pair.Key).Single()] = Process(pair.Value).Single();
+            }
+
+            yield return newDictionary;
         }
     }
 }

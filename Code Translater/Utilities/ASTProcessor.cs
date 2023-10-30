@@ -77,11 +77,31 @@ namespace Code_Translater.Utilities
                 case Null @null:
                     ProcessNull();
                     break;
+                case Property property:
+                    ProcessProperty(property);
+                    break;
+                case ArrayAccessor arrayAccessor:
+                    ProcessArrayAccessor(arrayAccessor);
+                    break;
+                case ForEach forEach:
+                    ProcessForEach(forEach);
+                    break;
+                case InterpolatedStringLiteral interpolatedStringLiteral:
+                    ProcessInterpolatedStringLiteral(interpolatedStringLiteral);
+                    break;
+                case DictionaryLiteral dictionaryNode:
+                    ProcessDictionaryLiteral(dictionaryNode);
+                    break;
                 default:
                     throw new NotImplementedException();
             }
         }
 
+        protected abstract void ProcessDictionaryLiteral(DictionaryLiteral dictionaryNode);
+        protected abstract void ProcessInterpolatedStringLiteral(InterpolatedStringLiteral interpolatedStringLiteral);
+        protected abstract void ProcessForEach(ForEach forEach);
+        protected abstract void ProcessArrayAccessor(ArrayAccessor arrayAccessor);
+        protected abstract void ProcessProperty(Property property);
         protected abstract void ProcessNull();
         protected abstract void ProcessListLiteral(ListLiteral listLiteral);
         protected abstract void ProcessClass(Class @class);
@@ -154,11 +174,29 @@ namespace Code_Translater.Utilities
                     return ProcessListLiteral(listLiteral);
                 case Null @null:
                     return ProcessNull();
+                case Property property:
+                    return ProcessProperty(property);
+                case ArrayAccessor arrayAccessor:
+                    return ProcessArrayAccessor(arrayAccessor);
+                case BooleanLiteral booleanLiteral:
+                    return ProcessBooleanLiteral(booleanLiteral);
+                case ForEach forEach:
+                    return ProcessForEach(forEach);
+                case InterpolatedStringLiteral interpolatedStringLiteral:
+                    return ProcessInterpolatedStringLiteral(interpolatedStringLiteral);
+                case DictionaryLiteral dictionaryNode:
+                    return ProcessDictionaryNode(dictionaryNode);
                 default:
                     throw new NotImplementedException();
             }
         }
 
+        protected abstract T ProcessDictionaryNode(DictionaryLiteral dictionaryNode);
+        protected abstract T ProcessInterpolatedStringLiteral(InterpolatedStringLiteral interpolatedStringLiteral);
+        protected abstract T ProcessForEach(ForEach forEach);
+        protected abstract T ProcessBooleanLiteral(BooleanLiteral booleanLiteral);
+        protected abstract T ProcessArrayAccessor(ArrayAccessor arrayAccessor);
+        protected abstract T ProcessProperty(Property property);
         protected abstract T ProcessNull();
         protected abstract T ProcessListLiteral(ListLiteral literal);
         protected abstract T ProcessClass(Class @class);
