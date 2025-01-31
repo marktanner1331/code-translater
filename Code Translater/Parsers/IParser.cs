@@ -8,6 +8,6 @@ namespace Code_Translater.Parsers
 {
     public interface IParser
     {
-        public Root Parse(string code);
+        public Root Parse();
     }
 }

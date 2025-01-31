@@ -9,9 +9,9 @@ namespace Code_Translater.Parsers
 {
     public class PythonParser : IParser
     {
-        private TokenEnumerator tokenEnumerator;
+        private TokenEnumerator TokenEnumerator;
 
-        private Stack<INodeContainer> stack;
+        private Stack<INodeContainer> Stack;
         private int currentIndent;
 
         private int LineNumber = 0;
@@ -20,36 +20,39 @@ namespace Code_Translater.Parsers
         //i.e. np -> numpy
         private Dictionary<string, string> packageAliases;
 
-        public Root Parse(string code)
+        public PythonParser(string code)
         {
             Tokenizer tokenizer = new PythonTokenizer(code);
-            this.tokenEnumerator = new TokenEnumerator(tokenizer);
+            this.TokenEnumerator = new TokenEnumerator(tokenizer);
+        }
 
+        public Root Parse()
+        {
             Root root = new Root();
 
-            stack = new Stack<INodeContainer>();
-            stack.Push(root);
+            Stack = new Stack<INodeContainer>();
+            Stack.Push(root);
             currentIndent = 0;
 
             packageAliases = new Dictionary<string, string>();
 
             LineNumber = 1;
 
-            while (tokenEnumerator.Type != TokenType.END_OF_FILE)
+            while (TokenEnumerator.Type != TokenType.END_OF_FILE)
             {
                 int indent = 0;
-                if (tokenEnumerator.Type == TokenType.INDENT)
+                if (TokenEnumerator.Type == TokenType.INDENT)
                 {
-                    indent = int.Parse(tokenEnumerator.Value);
-                    tokenEnumerator.MoveNext();
+                    indent = int.Parse(TokenEnumerator.Value);
+                    TokenEnumerator.MoveNext();
                 }
 
-                if (tokenEnumerator.Type == TokenType.NEW_LINE)
+                if (TokenEnumerator.Type == TokenType.NEW_LINE)
                 {
                     //no need to use the indent to change the stack here
                     //as new lines can contain 0 indent
-                    stack.Peek().Children.Add(new BlankLine());
-                    tokenEnumerator.MoveNext();
+                    Stack.Peek().Children.Add(new BlankLine());
+                    TokenEnumerator.MoveNext();
                 }
                 else
                 {
@@ -60,16 +63,16 @@ namespace Code_Translater.Parsers
 
                     ParseLine();
 
-                    if (tokenEnumerator.Value == "#")
+                    if (TokenEnumerator.Value == "#")
                     {
-                        stack.Peek().Children.Last().InlineComment = ParseComment();
+                        Stack.Peek().Children.Last().InlineComment = ParseComment();
                     }
 
-                    if (tokenEnumerator.Type == TokenType.NEW_LINE)
+                    if (TokenEnumerator.Type == TokenType.NEW_LINE)
                     {
-                        tokenEnumerator.MoveNext();
+                        TokenEnumerator.MoveNext();
                     }
-                    else if(tokenEnumerator.Type == TokenType.END_OF_FILE)
+                    else if(TokenEnumerator.Type == TokenType.END_OF_FILE)
                     {
                         break;
                     }
@@ -88,15 +91,15 @@ namespace Code_Translater.Parsers
 
         private void ParseLine()
         {
-            switch (tokenEnumerator.Type)
+            switch (TokenEnumerator.Type)
             {
                 case TokenType.ALPHA_NUMERIC:
                     ParseAlpaNumeric();
                     return;
                 case TokenType.PUNCTUATION:
-                    if (tokenEnumerator.Value == "#")
+                    if (TokenEnumerator.Value == "#")
                     {
-                        stack.Peek().Children.Add(ParseComment());
+                        Stack.Peek().Children.Add(ParseComment());
                         return;
                     }
                     break;
@@ -109,14 +112,14 @@ namespace Code_Translater.Parsers
 
         private Comment ParseComment()
         {
-            tokenEnumerator.ReadRestOfLineRaw();
+            TokenEnumerator.ReadRestOfLineRaw();
 
             Comment comment = new Comment
             {
-                Value = tokenEnumerator.Value
+                Value = TokenEnumerator.Value
             };
 
-            tokenEnumerator.MoveNext();
+            TokenEnumerator.MoveNext();
             return comment;
         }
 
@@ -137,22 +140,22 @@ namespace Code_Translater.Parsers
             {
                 List<Node> extraNodes = new List<Node>();
                 //blank lines and comments at the start of a block should belong on the child block
-                while (stack.Peek().Children.Last() is BlankLine || stack.Peek().Children.Last() is Comment)
+                while (Stack.Peek().Children.Last() is BlankLine || Stack.Peek().Children.Last() is Comment)
                 {
-                    Node extra = stack.Peek().Children.Last();
-                    stack.Peek().Children.RemoveAt(stack.Peek().Children.Count - 1);
+                    Node extra = Stack.Peek().Children.Last();
+                    Stack.Peek().Children.RemoveAt(Stack.Peek().Children.Count - 1);
                 }
 
-                Node mostRecent = stack.Peek().Children.Last();
+                Node mostRecent = Stack.Peek().Children.Last();
                 if (mostRecent is INodeContainer == false)
                 {
                     throw new Exception();
                 }
 
-                stack.Push((INodeContainer)mostRecent);
+                Stack.Push((INodeContainer)mostRecent);
 
                 extraNodes.Reverse();
-                stack.Peek().Children.AddRange(extraNodes);
+                Stack.Peek().Children.AddRange(extraNodes);
 
                 return;
             }
@@ -167,17 +170,17 @@ namespace Code_Translater.Parsers
                 int numBlankLines = 0;
 
                 //blank lines at the end of a block should belong on the parent scope
-                while (stack.Peek().Children.Last() is BlankLine)
+                while (Stack.Peek().Children.Last() is BlankLine)
                 {
-                    stack.Peek().Children.RemoveAt(stack.Peek().Children.Count - 1);
+                    Stack.Peek().Children.RemoveAt(Stack.Peek().Children.Count - 1);
                     numBlankLines++;
                 }
 
-                stack.Pop();
+                Stack.Pop();
 
                 for (int i = 0; i < numBlankLines; i++)
                 {
-                    stack.Peek().Children.Add(new BlankLine());
+                    Stack.Peek().Children.Add(new BlankLine());
                 }
 
                 difference++;
@@ -194,7 +197,7 @@ namespace Code_Translater.Parsers
                 return;
             }
 
-            if(tokenEnumerator.Value == "msg")
+            if(TokenEnumerator.Value == "msg")
             {
 
             }
@@ -213,7 +216,7 @@ namespace Code_Translater.Parsers
 
             if (node is FunctionCall || (node is Property property && property.Values.Last() is FunctionCall))
             {
-                stack.Peek().Children.Add(node);
+                Stack.Peek().Children.Add(node);
                 return;
             }
             else
@@ -226,7 +229,7 @@ namespace Code_Translater.Parsers
 
         private bool TryParseKeyword()
         {
-            switch (tokenEnumerator.Value)
+            switch (TokenEnumerator.Value)
             {
                 case "def":
                     AddFunction();
@@ -266,34 +269,34 @@ namespace Code_Translater.Parsers
 
         private void AddForLoop()
         {
-            tokenEnumerator.MoveNext();
+            TokenEnumerator.MoveNext();
 
-            if (tokenEnumerator.Type != TokenType.ALPHA_NUMERIC)
+            if (TokenEnumerator.Type != TokenType.ALPHA_NUMERIC)
             {
                 throw new Exception();
             }
 
-            string variableName = tokenEnumerator.Value;
+            string variableName = TokenEnumerator.Value;
 
-            tokenEnumerator.MoveNext();
+            TokenEnumerator.MoveNext();
 
-            if(tokenEnumerator.Value != "in")
+            if(TokenEnumerator.Value != "in")
             {
                 throw new Exception();
             }
 
-            tokenEnumerator.MoveNext();
+            TokenEnumerator.MoveNext();
 
             Node collection = ReadValue();
 
-            if(tokenEnumerator.Value != ":")
+            if(TokenEnumerator.Value != ":")
             {
                 throw new Exception();
             }
 
-            tokenEnumerator.MoveNext();
+            TokenEnumerator.MoveNext();
 
-            stack.Peek().Children.Add(new ForEach
+            Stack.Peek().Children.Add(new ForEach
             {
                 VariableName = variableName,
                 Collection = collection
@@ -302,25 +305,25 @@ namespace Code_Translater.Parsers
 
         private void AddClass()
         {
-            tokenEnumerator.MoveNext();
+            TokenEnumerator.MoveNext();
 
-            if (tokenEnumerator.Type != TokenType.ALPHA_NUMERIC)
+            if (TokenEnumerator.Type != TokenType.ALPHA_NUMERIC)
             {
                 throw new Exception();
             }
 
-            string className = tokenEnumerator.Value;
+            string className = TokenEnumerator.Value;
 
-            tokenEnumerator.MoveNext();
+            TokenEnumerator.MoveNext();
 
-            if (tokenEnumerator.Value != ":")
+            if (TokenEnumerator.Value != ":")
             {
                 throw new Exception();
             }
 
-            tokenEnumerator.MoveNext();
+            TokenEnumerator.MoveNext();
 
-            stack.Peek().Children.Add(new Class
+            Stack.Peek().Children.Add(new Class
             {
                 Name = className
             });
@@ -328,12 +331,12 @@ namespace Code_Translater.Parsers
 
         private void AddIfStatement()
         {
-            tokenEnumerator.MoveNext();
+            TokenEnumerator.MoveNext();
 
             Node rValue;
-            if (tokenEnumerator.Value == "not")
+            if (TokenEnumerator.Value == "not")
             {
-                tokenEnumerator.MoveNext();
+                TokenEnumerator.MoveNext();
 
                 rValue = ParseRValue();
                 rValue = new Expression
@@ -357,14 +360,14 @@ namespace Code_Translater.Parsers
                 rValue = ParseRValue();
             }
 
-            if (tokenEnumerator.Value != ":")
+            if (TokenEnumerator.Value != ":")
             {
                 throw new Exception();
             }
 
-            tokenEnumerator.MoveNext();
+            TokenEnumerator.MoveNext();
 
-            stack.Peek().Children.Add(new If
+            Stack.Peek().Children.Add(new If
             {
                 Expression = rValue
             });
@@ -372,12 +375,12 @@ namespace Code_Translater.Parsers
 
         private void AddElseIfStatement()
         {
-            tokenEnumerator.MoveNext();
+            TokenEnumerator.MoveNext();
 
             Node rValue;
-            if (tokenEnumerator.Value == "not")
+            if (TokenEnumerator.Value == "not")
             {
-                tokenEnumerator.MoveNext();
+                TokenEnumerator.MoveNext();
 
                 rValue = ParseRValue();
                 rValue = new Expression
@@ -401,14 +404,14 @@ namespace Code_Translater.Parsers
                 rValue = ParseRValue();
             }
 
-            if (tokenEnumerator.Value != ":")
+            if (TokenEnumerator.Value != ":")
             {
                 throw new Exception();
             }
 
-            tokenEnumerator.MoveNext();
+            TokenEnumerator.MoveNext();
 
-            stack.Peek().Children.Add(new ElseIf
+            Stack.Peek().Children.Add(new ElseIf
             {
                 Expression = rValue
             });
@@ -416,31 +419,31 @@ namespace Code_Translater.Parsers
 
         private void AddElseStatement()
         {
-            tokenEnumerator.MoveNext();
+            TokenEnumerator.MoveNext();
 
-            if (tokenEnumerator.Value != ":")
+            if (TokenEnumerator.Value != ":")
             {
                 throw new Exception();
             }
 
-            tokenEnumerator.MoveNext();
+            TokenEnumerator.MoveNext();
 
-            stack.Peek().Children.Add(new Else());
+            Stack.Peek().Children.Add(new Else());
         }
 
         private void ParseWhileLoop()
         {
-            tokenEnumerator.MoveNext();
+            TokenEnumerator.MoveNext();
             Node rValue = ParseRValue();
 
-            if (tokenEnumerator.Value != ":")
+            if (TokenEnumerator.Value != ":")
             {
                 throw new Exception();
             }
 
-            tokenEnumerator.MoveNext();
+            TokenEnumerator.MoveNext();
 
-            stack.Peek().Children.Add(new While
+            Stack.Peek().Children.Add(new While
             {
                 Expression = rValue
             });
@@ -448,28 +451,28 @@ namespace Code_Translater.Parsers
 
         private void AddBreak()
         {
-            stack.Peek().Children.Add(new Break());
-            tokenEnumerator.MoveNext();
+            Stack.Peek().Children.Add(new Break());
+            TokenEnumerator.MoveNext();
         }
 
         private void AddReturn()
         {
-            if (stack.Any(x => x is Function) == false)
+            if (Stack.Any(x => x is Function) == false)
             {
                 throw new Exception();
             }
 
-            tokenEnumerator.MoveNext();
+            TokenEnumerator.MoveNext();
 
-            if (tokenEnumerator.Type == TokenType.NEW_LINE)
+            if (TokenEnumerator.Type == TokenType.NEW_LINE)
             {
-                stack.Peek().Children.Add(new Return());
+                Stack.Peek().Children.Add(new Return());
                 return;
             }
 
             Node rValue = ParseRValue();
 
-            stack.Peek().Children.Add(new Return
+            Stack.Peek().Children.Add(new Return
             {
                 Value = rValue
             });
@@ -484,9 +487,9 @@ namespace Code_Translater.Parsers
             }
 
             //either 'from' or 'import'
-            tokenEnumerator.MoveNext();
+            TokenEnumerator.MoveNext();
 
-            if (tokenEnumerator.Type != TokenType.ALPHA_NUMERIC)
+            if (TokenEnumerator.Type != TokenType.ALPHA_NUMERIC)
             {
                 throw new Exception();
             }
@@ -509,16 +512,16 @@ namespace Code_Translater.Parsers
 
             string component;
 
-            if (tokenEnumerator.Value == "import")
+            if (TokenEnumerator.Value == "import")
             {
-                tokenEnumerator.MoveNext();
-                if (tokenEnumerator.Type != TokenType.ALPHA_NUMERIC)
+                TokenEnumerator.MoveNext();
+                if (TokenEnumerator.Type != TokenType.ALPHA_NUMERIC)
                 {
                     throw new Exception();
                 }
 
-                component = tokenEnumerator.Value;
-                tokenEnumerator.MoveNext();
+                component = TokenEnumerator.Value;
+                TokenEnumerator.MoveNext();
             }
             else
             {
@@ -527,28 +530,28 @@ namespace Code_Translater.Parsers
 
             string alias;
 
-            if (tokenEnumerator.Type == TokenType.NEW_LINE)
+            if (TokenEnumerator.Type == TokenType.NEW_LINE)
             {
                 alias = null;
             }
-            else if (tokenEnumerator.Type == TokenType.ALPHA_NUMERIC && tokenEnumerator.Value == "as")
+            else if (TokenEnumerator.Type == TokenType.ALPHA_NUMERIC && TokenEnumerator.Value == "as")
             {
-                tokenEnumerator.MoveNext();
+                TokenEnumerator.MoveNext();
 
-                if (tokenEnumerator.Type != TokenType.ALPHA_NUMERIC)
+                if (TokenEnumerator.Type != TokenType.ALPHA_NUMERIC)
                 {
                     throw new Exception();
                 }
 
-                alias = tokenEnumerator.Value;
-                tokenEnumerator.MoveNext();
+                alias = TokenEnumerator.Value;
+                TokenEnumerator.MoveNext();
             }
             else
             {
                 throw new Exception();
             }
 
-            stack.Peek().Children.Add(new Import
+            Stack.Peek().Children.Add(new Import
             {
                 Package = packageName,
                 Component = component,
@@ -586,26 +589,26 @@ namespace Code_Translater.Parsers
 
         private bool TryAddAssignment()
         {
-            TokenizerState currentStete = tokenEnumerator.GetCurrentState();
+            TokenizerState currentStete = TokenEnumerator.GetCurrentState();
 
             Node lValue = ReadValue();
             if(IsLValue(lValue) == false)
             {
-                tokenEnumerator.RestoreState(currentStete);
+                TokenEnumerator.RestoreState(currentStete);
                 return false;
             }
             
-            if (tokenEnumerator.Type != TokenType.PUNCTUATION || tokenEnumerator.Value != "=")
+            if (TokenEnumerator.Type != TokenType.PUNCTUATION || TokenEnumerator.Value != "=")
             {
-                tokenEnumerator.RestoreState(currentStete);
+                TokenEnumerator.RestoreState(currentStete);
                 return false;
             }
 
-            tokenEnumerator.MoveNext();
+            TokenEnumerator.MoveNext();
 
             Node rValue = ReadValue();
 
-            stack.Peek().Children.Add(new Assignment
+            Stack.Peek().Children.Add(new Assignment
             {
                 LValue = lValue,
                 RValue = rValue
@@ -616,13 +619,13 @@ namespace Code_Translater.Parsers
 
         private bool TryAddMultipleAssignment()
         {
-            TokenizerState currentStete = tokenEnumerator.GetCurrentState();
+            TokenizerState currentStete = TokenEnumerator.GetCurrentState();
 
             List<Node> lValues = new List<Node>();
 
             while (true)
             {
-                if (tokenEnumerator.Type != TokenType.ALPHA_NUMERIC)
+                if (TokenEnumerator.Type != TokenType.ALPHA_NUMERIC)
                 {
                     throw new Exception();
                 }
@@ -630,19 +633,19 @@ namespace Code_Translater.Parsers
 
                 lValues.Add(ReadValue());
 
-                if (tokenEnumerator.Type != TokenType.PUNCTUATION)
+                if (TokenEnumerator.Type != TokenType.PUNCTUATION)
                 {
-                    tokenEnumerator.RestoreState(currentStete);
+                    TokenEnumerator.RestoreState(currentStete);
                     return false;
                 }
 
-                if (tokenEnumerator.Value == "=")
+                if (TokenEnumerator.Value == "=")
                 {
-                    tokenEnumerator.MoveNext();
+                    TokenEnumerator.MoveNext();
 
                     Node rValue = ParseRValue();
 
-                    stack.Peek().Children.Add(new MultipleAssignment
+                    Stack.Peek().Children.Add(new MultipleAssignment
                     {
                         LValues = lValues.Select(x => new Assignment() { LValue = x }).ToList(),
                         RValue = rValue
@@ -650,13 +653,13 @@ namespace Code_Translater.Parsers
 
                     return true;
                 }
-                else if (tokenEnumerator.Value == ",")
+                else if (TokenEnumerator.Value == ",")
                 {
-                    tokenEnumerator.MoveNext();
+                    TokenEnumerator.MoveNext();
                 }
                 else
                 {
-                    tokenEnumerator.RestoreState(currentStete);
+                    TokenEnumerator.RestoreState(currentStete);
                     return false;
                 }
             }
@@ -664,25 +667,25 @@ namespace Code_Translater.Parsers
 
         private bool TryParseBoolean(out BooleanLiteral booleanLiteral)
         {
-            if (tokenEnumerator.Value == "True")
+            if (TokenEnumerator.Value == "True")
             {
                 booleanLiteral = new BooleanLiteral
                 {
                     Value = true
                 };
 
-                tokenEnumerator.MoveNext();
+                TokenEnumerator.MoveNext();
 
                 return true;
             }
-            else if (tokenEnumerator.Value == "False")
+            else if (TokenEnumerator.Value == "False")
             {
                 booleanLiteral = new BooleanLiteral
                 {
                     Value = false
                 };
 
-                tokenEnumerator.MoveNext();
+                TokenEnumerator.MoveNext();
 
                 return true;
             }
@@ -695,19 +698,19 @@ namespace Code_Translater.Parsers
 
         private Node ReadUnary()
         {
-            if (tokenEnumerator.Value == "(")
+            if (TokenEnumerator.Value == "(")
             {
-                tokenEnumerator.MoveNext();
+                TokenEnumerator.MoveNext();
 
-                if (tokenEnumerator.Value == ")")
+                if (TokenEnumerator.Value == ")")
                 {
-                    tokenEnumerator.MoveNext();
+                    TokenEnumerator.MoveNext();
                     return new TupleNode();
                 }
 
                 Node value = ReadValue();
 
-                if (tokenEnumerator.Value == ")")
+                if (TokenEnumerator.Value == ")")
                 {
                     if (value is Expression == false)
                     {
@@ -716,27 +719,27 @@ namespace Code_Translater.Parsers
                         value = expression;
                     }
 
-                    tokenEnumerator.MoveNext();
+                    TokenEnumerator.MoveNext();
 
                     return value;
                 }
-                else if (tokenEnumerator.Value == ",")
+                else if (TokenEnumerator.Value == ",")
                 {
                     TupleNode tuple = new TupleNode();
                     tuple.Values.Add(value);
 
-                    tokenEnumerator.MoveNext();
+                    TokenEnumerator.MoveNext();
 
                     while (true)
                     {
                         tuple.Values.Add(ReadProperty());
-                        if (tokenEnumerator.Value == ")")
+                        if (TokenEnumerator.Value == ")")
                         {
                             break;
                         }
-                        else if (tokenEnumerator.Value == ",")
+                        else if (TokenEnumerator.Value == ",")
                         {
-                            tokenEnumerator.MoveNext();
+                            TokenEnumerator.MoveNext();
                         }
                         else
                         {
@@ -744,7 +747,7 @@ namespace Code_Translater.Parsers
                         }
                     }
 
-                    tokenEnumerator.MoveNext();
+                    TokenEnumerator.MoveNext();
 
                     return tuple;
                 }
@@ -753,23 +756,23 @@ namespace Code_Translater.Parsers
                     throw new Exception();
                 }
             }
-            else if(tokenEnumerator.Value == "{")
+            else if(TokenEnumerator.Value == "{")
             {
                 return ParseDictionary();
             }
-            else if (tokenEnumerator.Value == "[")
+            else if (TokenEnumerator.Value == "[")
             {
                 if (TryParseListComprehension(out ListComprehension listComprehension))
                 {
                     return listComprehension;
                 }
 
-                tokenEnumerator.MoveNext();
+                TokenEnumerator.MoveNext();
                 ListLiteral list = new ListLiteral();
 
-                if (tokenEnumerator.Value == "]")
+                if (TokenEnumerator.Value == "]")
                 {
-                    tokenEnumerator.MoveNext();
+                    TokenEnumerator.MoveNext();
                     return list;
                 }
 
@@ -777,13 +780,13 @@ namespace Code_Translater.Parsers
                 {
                     list.Values.Add(ReadValue());
 
-                    if (tokenEnumerator.Value == ",")
+                    if (TokenEnumerator.Value == ",")
                     {
-                        tokenEnumerator.MoveNext();
+                        TokenEnumerator.MoveNext();
                     }
-                    else if (tokenEnumerator.Value == "]")
+                    else if (TokenEnumerator.Value == "]")
                     {
-                        tokenEnumerator.MoveNext();
+                        TokenEnumerator.MoveNext();
                         return list;
                     }
                     else
@@ -792,11 +795,11 @@ namespace Code_Translater.Parsers
                     }
                 }
             }
-            else if (tokenEnumerator.Type == TokenType.ALPHA_NUMERIC)
+            else if (TokenEnumerator.Type == TokenType.ALPHA_NUMERIC)
             {
-                if (tokenEnumerator.Value == "None")
+                if (TokenEnumerator.Value == "None")
                 {
-                    tokenEnumerator.MoveNext();
+                    TokenEnumerator.MoveNext();
                     return new Null();
                 }
 
@@ -805,10 +808,10 @@ namespace Code_Translater.Parsers
                     return booleanLiteral;
                 }
 
-                string name = tokenEnumerator.Value;
-                tokenEnumerator.MoveNext();
+                string name = TokenEnumerator.Value;
+                TokenEnumerator.MoveNext();
 
-                if (tokenEnumerator.Value == "(")
+                if (TokenEnumerator.Value == "(")
                 {
                     return new FunctionCall()
                     {
@@ -824,18 +827,18 @@ namespace Code_Translater.Parsers
                     };
                 }
             }
-            else if (tokenEnumerator.Type == TokenType.STRING_LITERAL)
+            else if (TokenEnumerator.Type == TokenType.STRING_LITERAL)
             {
                 return ParseStringLiteral();
             }
-            else if (tokenEnumerator.Type == TokenType.NUMBER)
+            else if (TokenEnumerator.Type == TokenType.NUMBER)
             {
                 Number number = new Number
                 {
-                    Value = tokenEnumerator.Value
+                    Value = TokenEnumerator.Value
                 };
 
-                tokenEnumerator.MoveNext();
+                TokenEnumerator.MoveNext();
                 return number;
             }
             else
@@ -861,9 +864,9 @@ namespace Code_Translater.Parsers
 
             while (true)
             {
-                if (tokenEnumerator.Type == TokenType.PUNCTUATION)
+                if (TokenEnumerator.Type == TokenType.PUNCTUATION)
                 {
-                    if (tokenEnumerator.Value == ".")
+                    if (TokenEnumerator.Value == ".")
                     {
                         if (node is Property property == false)
                         {
@@ -872,7 +875,7 @@ namespace Code_Translater.Parsers
                             node = property;
                         }
 
-                        tokenEnumerator.MoveNext();
+                        TokenEnumerator.MoveNext();
 
                         Node node2 = ReadUnary();
                         property.Values.Add(node2);
@@ -887,7 +890,7 @@ namespace Code_Translater.Parsers
                         break;
                     }
                 }
-                else if (tokenEnumerator.Value == "[")
+                else if (TokenEnumerator.Value == "[")
                 {
                     if (node is Property property == false)
                     {
@@ -921,14 +924,14 @@ namespace Code_Translater.Parsers
             //sometimes dictionaries or tuples are over multiple lines
             //but this doesn't mean they have their own scope
             //so we just skip over it
-            while (tokenEnumerator.Type == TokenType.NEW_LINE)
+            while (TokenEnumerator.Type == TokenType.NEW_LINE)
             {
                 LineNumber++;
-                tokenEnumerator.MoveNext();
+                TokenEnumerator.MoveNext();
 
-                if (tokenEnumerator.Type == TokenType.INDENT)
+                if (TokenEnumerator.Type == TokenType.INDENT)
                 {
-                    tokenEnumerator.MoveNext();
+                    TokenEnumerator.MoveNext();
                 }
             }
         }
@@ -939,20 +942,20 @@ namespace Code_Translater.Parsers
             expression.Coefficients.Add(ReadProperty());
             while (true)
             {
-                if (tokenEnumerator.Type == TokenType.PUNCTUATION)
+                if (TokenEnumerator.Type == TokenType.PUNCTUATION)
                 {
-                    if ("-+*/%".Contains(tokenEnumerator.Value))
+                    if ("-+*/%".Contains(TokenEnumerator.Value))
                     {
-                        expression.Operators.Add(tokenEnumerator.Value);
-                        tokenEnumerator.MoveNext();
+                        expression.Operators.Add(TokenEnumerator.Value);
+                        TokenEnumerator.MoveNext();
                         expression.Coefficients.Add(ReadProperty());
                     }
-                    else if (tokenEnumerator.Value.Length == 2)
+                    else if (TokenEnumerator.Value.Length == 2)
                     {
-                        if(tokenEnumerator.Value == "==")
+                        if(TokenEnumerator.Value == "==")
                         {
-                            expression.Operators.Add(tokenEnumerator.Value);
-                            tokenEnumerator.MoveNext();
+                            expression.Operators.Add(TokenEnumerator.Value);
+                            TokenEnumerator.MoveNext();
                             expression.Coefficients.Add(ReadProperty());
                         }
                         else
@@ -965,11 +968,11 @@ namespace Code_Translater.Parsers
                         break;
                     }
                 }
-                else if (tokenEnumerator.Type == TokenType.ALPHA_NUMERIC)
+                else if (TokenEnumerator.Type == TokenType.ALPHA_NUMERIC)
                 {
                     string _operator = null;
 
-                    switch (tokenEnumerator.Value)
+                    switch (TokenEnumerator.Value)
                     {
                         case "is":
                             _operator = "is";
@@ -984,7 +987,7 @@ namespace Code_Translater.Parsers
                     if(_operator != null)
                     {
                         expression.Operators.Add(_operator);
-                        tokenEnumerator.MoveNext();
+                        TokenEnumerator.MoveNext();
                         expression.Coefficients.Add(ReadProperty());
                     }
                     else
@@ -1011,14 +1014,14 @@ namespace Code_Translater.Parsers
         private Node ParseRValue()
         {
             Node expression = ReadValue();
-            if(tokenEnumerator.Value == ",")
+            if(TokenEnumerator.Value == ",")
             {
                 TupleNode tupleNode = new TupleNode();
                 tupleNode.Values.Add(expression);
 
-                while(tokenEnumerator.Value == ",")
+                while(TokenEnumerator.Value == ",")
                 {
-                    tokenEnumerator.MoveNext();
+                    TokenEnumerator.MoveNext();
 
                     expression = ReadValue();
                     tupleNode.Values.Add(expression);
@@ -1034,25 +1037,25 @@ namespace Code_Translater.Parsers
 
         public DictionaryLiteral ParseDictionary()
         {
-            tokenEnumerator.MoveNext();
+            TokenEnumerator.MoveNext();
             
             DictionaryLiteral dictionary = new DictionaryLiteral();
 
             while (true)
             {
-                if (tokenEnumerator.Value == "}")
+                if (TokenEnumerator.Value == "}")
                 {
-                    tokenEnumerator.MoveNext();
+                    TokenEnumerator.MoveNext();
                     return dictionary;
                 }
 
                 Node key = ReadValue();
-                if(tokenEnumerator.Value != ":")
+                if(TokenEnumerator.Value != ":")
                 {
                     throw new Exception();
                 }
 
-                tokenEnumerator.MoveNext();
+                TokenEnumerator.MoveNext();
 
                 Node value = ReadValue();
 
@@ -1060,14 +1063,14 @@ namespace Code_Translater.Parsers
 
                 SkipOverNewLine();
 
-                if (tokenEnumerator.Value == "}")
+                if (TokenEnumerator.Value == "}")
                 {
-                    tokenEnumerator.MoveNext();
+                    TokenEnumerator.MoveNext();
                     return dictionary;
                 }
-                else if (tokenEnumerator.Value == ",")
+                else if (TokenEnumerator.Value == ",")
                 {
-                    tokenEnumerator.MoveNext();
+                    TokenEnumerator.MoveNext();
                 }
                 else
                 {
@@ -1078,8 +1081,8 @@ namespace Code_Translater.Parsers
 
         public Node ParseStringLiteral()
         {
-            string s = tokenEnumerator.Value;
-            tokenEnumerator.MoveNext();
+            string s = TokenEnumerator.Value;
+            TokenEnumerator.MoveNext();
 
             if(s.StartsWith('f') || s.StartsWith('F'))
             {
@@ -1107,13 +1110,13 @@ namespace Code_Translater.Parsers
 
         private bool TryParseListLiteral(out ListLiteral listLiteral)
         {
-            TokenizerState currentState = tokenEnumerator.GetCurrentState();
+            TokenizerState currentState = TokenEnumerator.GetCurrentState();
 
-            tokenEnumerator.MoveNext();
+            TokenEnumerator.MoveNext();
 
-            if (tokenEnumerator.Type == TokenType.CLOSE_BRACKET && tokenEnumerator.Value == "]")
+            if (TokenEnumerator.Type == TokenType.CLOSE_BRACKET && TokenEnumerator.Value == "]")
             {
-                tokenEnumerator.MoveNext();
+                TokenEnumerator.MoveNext();
                 listLiteral = new ListLiteral
                 {
                     Values = new List<Node>()
@@ -1128,9 +1131,9 @@ namespace Code_Translater.Parsers
             {
                 values.Add(ReadValue());
 
-                if (tokenEnumerator.Type == TokenType.CLOSE_BRACKET && tokenEnumerator.Value == "]")
+                if (TokenEnumerator.Type == TokenType.CLOSE_BRACKET && TokenEnumerator.Value == "]")
                 {
-                    tokenEnumerator.MoveNext();
+                    TokenEnumerator.MoveNext();
                     listLiteral = new ListLiteral
                     {
                         Values = values
@@ -1138,15 +1141,15 @@ namespace Code_Translater.Parsers
 
                     return true;
                 }
-                else if (tokenEnumerator.Type == TokenType.PUNCTUATION && tokenEnumerator.Value == ",")
+                else if (TokenEnumerator.Type == TokenType.PUNCTUATION && TokenEnumerator.Value == ",")
                 {
-                    tokenEnumerator.MoveNext();
+                    TokenEnumerator.MoveNext();
                     continue;
                 }
                 else
                 {
                     listLiteral = null;
-                    tokenEnumerator.RestoreState(currentState);
+                    TokenEnumerator.RestoreState(currentState);
                     return false;
                 }
             }
@@ -1154,13 +1157,13 @@ namespace Code_Translater.Parsers
 
         private bool TryParseTuple(out TupleNode tuple)
         {
-            TokenizerState currentState = tokenEnumerator.GetCurrentState();
+            TokenizerState currentState = TokenEnumerator.GetCurrentState();
 
-            tokenEnumerator.MoveNext();
+            TokenEnumerator.MoveNext();
 
-            if (tokenEnumerator.Type == TokenType.CLOSE_BRACKET && tokenEnumerator.Value == ")")
+            if (TokenEnumerator.Type == TokenType.CLOSE_BRACKET && TokenEnumerator.Value == ")")
             {
-                tokenEnumerator.MoveNext();
+                TokenEnumerator.MoveNext();
                 tuple = new TupleNode
                 {
                     Values = new List<Node>()
@@ -1175,11 +1178,11 @@ namespace Code_Translater.Parsers
             {
                 values.Add(ReadValue());
 
-                if (tokenEnumerator.Type == TokenType.CLOSE_BRACKET && tokenEnumerator.Value == ")")
+                if (TokenEnumerator.Type == TokenType.CLOSE_BRACKET && TokenEnumerator.Value == ")")
                 {
                     if (values.Count > 1)
                     {
-                        tokenEnumerator.MoveNext();
+                        TokenEnumerator.MoveNext();
                         tuple = new TupleNode
                         {
                             Values = values
@@ -1190,19 +1193,19 @@ namespace Code_Translater.Parsers
                     else
                     {
                         tuple = null;
-                        tokenEnumerator.RestoreState(currentState);
+                        TokenEnumerator.RestoreState(currentState);
                         return false;
                     }
                 }
-                else if (tokenEnumerator.Type == TokenType.PUNCTUATION && tokenEnumerator.Value == ",")
+                else if (TokenEnumerator.Type == TokenType.PUNCTUATION && TokenEnumerator.Value == ",")
                 {
-                    tokenEnumerator.MoveNext();
+                    TokenEnumerator.MoveNext();
                     continue;
                 }
                 else
                 {
                     tuple = null;
-                    tokenEnumerator.RestoreState(currentState);
+                    TokenEnumerator.RestoreState(currentState);
                     return false;
                 }
             }
@@ -1212,10 +1215,10 @@ namespace Code_Translater.Parsers
         {
             Number number = new Number
             {
-                Value = tokenEnumerator.Value
+                Value = TokenEnumerator.Value
             };
 
-            tokenEnumerator.MoveNext();
+            TokenEnumerator.MoveNext();
             return number;
         }
 
@@ -1224,59 +1227,59 @@ namespace Code_Translater.Parsers
         /// </summary>
         private bool TryParseListComprehension(out ListComprehension listComprehension)
         {
-            TokenizerState currentState = tokenEnumerator.GetCurrentState();
+            TokenizerState currentState = TokenEnumerator.GetCurrentState();
 
-            tokenEnumerator.MoveNext();
+            TokenEnumerator.MoveNext();
 
-            if (tokenEnumerator.Value == "]")
+            if (TokenEnumerator.Value == "]")
             {
                 listComprehension = null;
-                tokenEnumerator.RestoreState(currentState);
+                TokenEnumerator.RestoreState(currentState);
                 return false;
             }
 
 
             Node expression = ReadValue();
-            if (tokenEnumerator.Value != "for")
+            if (TokenEnumerator.Value != "for")
             {
                 listComprehension = null;
-                tokenEnumerator.RestoreState(currentState);
+                TokenEnumerator.RestoreState(currentState);
                 return false;
             }
 
-            tokenEnumerator.MoveNext();
+            TokenEnumerator.MoveNext();
 
-            if (tokenEnumerator.Type != TokenType.ALPHA_NUMERIC)
+            if (TokenEnumerator.Type != TokenType.ALPHA_NUMERIC)
             {
                 throw new Exception();
             }
 
-            string variable = tokenEnumerator.Value;
+            string variable = TokenEnumerator.Value;
 
-            tokenEnumerator.MoveNext();
+            TokenEnumerator.MoveNext();
 
-            if (tokenEnumerator.Value != "in")
+            if (TokenEnumerator.Value != "in")
             {
                 throw new Exception();
             }
 
-            tokenEnumerator.MoveNext();
+            TokenEnumerator.MoveNext();
 
-            if (tokenEnumerator.Type != TokenType.ALPHA_NUMERIC)
+            if (TokenEnumerator.Type != TokenType.ALPHA_NUMERIC)
             {
                 throw new Exception();
             }
 
-            string collection = tokenEnumerator.Value;
+            string collection = TokenEnumerator.Value;
 
-            tokenEnumerator.MoveNext();
+            TokenEnumerator.MoveNext();
 
-            if (tokenEnumerator.Type != TokenType.CLOSE_BRACKET || tokenEnumerator.Value != "]")
+            if (TokenEnumerator.Type != TokenType.CLOSE_BRACKET || TokenEnumerator.Value != "]")
             {
                 throw new Exception();
             }
 
-            tokenEnumerator.MoveNext();
+            TokenEnumerator.MoveNext();
 
             listComprehension = new ListComprehension
             {
@@ -1369,18 +1372,18 @@ namespace Code_Translater.Parsers
 
         private List<FunctionParameter> ParseFunctionParameters()
         {
-            if (tokenEnumerator.Value != "(")
+            if (TokenEnumerator.Value != "(")
             {
                 throw new Exception();
             }
 
             List<FunctionParameter> parameters = new List<FunctionParameter>();
 
-            tokenEnumerator.MoveNext();
+            TokenEnumerator.MoveNext();
 
-            if (tokenEnumerator.Value == ")")
+            if (TokenEnumerator.Value == ")")
             {
-                tokenEnumerator.MoveNext();
+                TokenEnumerator.MoveNext();
                 return parameters;
             }
 
@@ -1388,9 +1391,9 @@ namespace Code_Translater.Parsers
             {
                 Node value = ReadValue();
 
-                if (tokenEnumerator.Value == "=" && value is Variable variable)
+                if (TokenEnumerator.Value == "=" && value is Variable variable)
                 {
-                    tokenEnumerator.MoveNext();
+                    TokenEnumerator.MoveNext();
 
                     parameters.Add(new FunctionParameter
                     {
@@ -1406,14 +1409,14 @@ namespace Code_Translater.Parsers
                     });
                 }
 
-                if (tokenEnumerator.Value == ",")
+                if (TokenEnumerator.Value == ",")
                 {
-                    tokenEnumerator.MoveNext();
+                    TokenEnumerator.MoveNext();
                     continue;
                 }
-                else if (tokenEnumerator.Value == ")")
+                else if (TokenEnumerator.Value == ")")
                 {
-                    tokenEnumerator.MoveNext();
+                    TokenEnumerator.MoveNext();
                     return parameters;
                 }
 
@@ -1423,15 +1426,15 @@ namespace Code_Translater.Parsers
 
         private string ParseTypeHint()
         {
-            if (tokenEnumerator.Type != TokenType.ALPHA_NUMERIC)
+            if (TokenEnumerator.Type != TokenType.ALPHA_NUMERIC)
             {
                 throw new Exception();
             }
 
-            if (tokenEnumerator.Value == "Optional")
+            if (TokenEnumerator.Value == "Optional")
             {
-                tokenEnumerator.MoveNext();
-                if (tokenEnumerator.Value != "[")
+                TokenEnumerator.MoveNext();
+                if (TokenEnumerator.Value != "[")
                 {
                     throw new Exception();
                 }
@@ -1448,10 +1451,10 @@ namespace Code_Translater.Parsers
 
                 return (listLiteral.Values[0] as Variable).Name + "?";
             }
-            else if (tokenEnumerator.Value == "List")
+            else if (TokenEnumerator.Value == "List")
             {
-                tokenEnumerator.MoveNext();
-                if (tokenEnumerator.Value != "[")
+                TokenEnumerator.MoveNext();
+                if (TokenEnumerator.Value != "[")
                 {
                     throw new Exception();
                 }
@@ -1470,8 +1473,8 @@ namespace Code_Translater.Parsers
             }
             else
             {
-                string type = tokenEnumerator.Value;
-                tokenEnumerator.MoveNext();
+                string type = TokenEnumerator.Value;
+                TokenEnumerator.MoveNext();
                 return type;
             }
         }
@@ -1482,41 +1485,41 @@ namespace Code_Translater.Parsers
         private void AddFunction()
         {
             Function function = new Function();
-            stack.Peek().Children.Add(function);
+            Stack.Peek().Children.Add(function);
 
-            tokenEnumerator.MoveNext();
-            function.Name = tokenEnumerator.Value;
+            TokenEnumerator.MoveNext();
+            function.Name = TokenEnumerator.Value;
 
-            tokenEnumerator.MoveNext();
-            if (tokenEnumerator.Value != "(")
+            TokenEnumerator.MoveNext();
+            if (TokenEnumerator.Value != "(")
             {
                 throw new Exception();
             }
 
-            tokenEnumerator.MoveNext();
+            TokenEnumerator.MoveNext();
 
             bool foundEnd = false;
 
-            if (tokenEnumerator.Value == ")")
+            if (TokenEnumerator.Value == ")")
             {
-                tokenEnumerator.MoveNext();
+                TokenEnumerator.MoveNext();
                 foundEnd = true;
             }
 
             while (foundEnd == false)
             {
-                if (tokenEnumerator.Type == TokenType.ALPHA_NUMERIC)
+                if (TokenEnumerator.Type == TokenType.ALPHA_NUMERIC)
                 {
                     FunctionParameter functionParameter = new FunctionParameter
                     {
-                        Name = tokenEnumerator.Value
+                        Name = TokenEnumerator.Value
                     };
 
-                    tokenEnumerator.MoveNext();
+                    TokenEnumerator.MoveNext();
 
-                    if (tokenEnumerator.Value == ":")
+                    if (TokenEnumerator.Value == ":")
                     {
-                        tokenEnumerator.MoveNext();
+                        TokenEnumerator.MoveNext();
                         functionParameter.Type = ParseTypeHint();
                     }
 
@@ -1530,13 +1533,13 @@ namespace Code_Translater.Parsers
                     throw new Exception();
                 }
 
-                if (tokenEnumerator.Value == ",")
+                if (TokenEnumerator.Value == ",")
                 {
-                    tokenEnumerator.MoveNext();
+                    TokenEnumerator.MoveNext();
                 }
-                else if (tokenEnumerator.Value == ")")
+                else if (TokenEnumerator.Value == ")")
                 {
-                    tokenEnumerator.MoveNext();
+                    TokenEnumerator.MoveNext();
                     foundEnd = true;
                 }
                 else
@@ -1545,18 +1548,18 @@ namespace Code_Translater.Parsers
                 }
             }
 
-            if (tokenEnumerator.Value == "->")
+            if (TokenEnumerator.Value == "->")
             {
-                tokenEnumerator.MoveNext();
+                TokenEnumerator.MoveNext();
                 function.ReturnType = ParseTypeHint();
             }
 
-            if (tokenEnumerator.Value != ":")
+            if (TokenEnumerator.Value != ":")
             {
                 throw new Exception();
             }
 
-            tokenEnumerator.MoveNext();
+            TokenEnumerator.MoveNext();
         }
     }
 }

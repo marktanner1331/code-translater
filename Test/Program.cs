@@ -7,12 +7,7 @@ namespace Test
     {
         static void Main(string[] args)
         {
-            Tester.SerializeTest(Tester.Language.PYTHON, Tester.Language.CSHARP, 15);
-
-            //for (int i = 1; i <= 13; i++)
-            //{
-            //    Tester.SerializeTest(Tester.Language.PYTHON, Tester.Language.CSHARP, i);
-            //}
+            Tester.SerializeTest(Tester.Language.JAVASCRIPT, Tester.Language.CSHARP, 1);
         }
     }
 }

@@ -15,15 +15,15 @@ namespace Code_TranslaterTests
 {
     public class Tester
     {
-        private static string ScriptsFolder = @"C:\Users\Home\Documents\code-translater\Code TranslaterTests\Scripts\";
+        private static string ScriptsFolder = @"D:\Users\mark.tanner\github\code-translater\Code TranslaterTests\Scripts\";
 
         public static Root Parse(Language input, int scriptName)
         {
             string sourceCodePath = ScriptsFolder + GetFolderName(input) + "/" + scriptName + GetExtension(input);
             string sourceCode = File.ReadAllText(sourceCodePath);
 
-            IParser parser = GetParser(input);
-            return parser.Parse(sourceCode);
+            IParser parser = GetParser(input, sourceCode);
+            return parser.Parse();
         }
 
         public static void SerializeTest(Language input, Language output, int scriptName)
@@ -36,9 +36,9 @@ namespace Code_TranslaterTests
             string destCodePath = codePath + scriptName + "/" + scriptName + "." + GetExtension(output);
             string destCode = File.ReadAllText(destCodePath);
 
-            IParser parser = GetParser(input);
+            IParser parser = GetParser(input, sourceCode);
 
-            Root root = parser.Parse(sourceCode);
+            Root root = parser.Parse();
 
             ISerializer serializer = GetSerializer(output);
             string actualDestCode = serializer.Serialize(root);
@@ -62,12 +62,14 @@ namespace Code_TranslaterTests
             }
         }
 
-        private static IParser GetParser(Language language)
+        private static IParser GetParser(Language language, string code)
         {
             switch (language)
             {
                 case Language.PYTHON:
-                    return new PythonParser();
+                    return new PythonParser(code);
+                case Language.JAVASCRIPT:
+                    return new JavascriptParser(code);
                 default:
                     throw new Exception();
             }
@@ -81,6 +83,8 @@ namespace Code_TranslaterTests
                     return "CSharp";
                 case Language.PYTHON:
                     return "Python";
+                case Language.JAVASCRIPT:
+                    return "Javascript";
                 default:
                     throw new Exception();
             }
@@ -94,6 +98,8 @@ namespace Code_TranslaterTests
                     return "cs";
                 case Language.PYTHON:
                     return "py";
+                case Language.JAVASCRIPT:
+                    return "js";
                 default:
                     throw new Exception();
             }
@@ -102,7 +108,8 @@ namespace Code_TranslaterTests
         public enum Language
         {
             CSHARP,
-            PYTHON
+            PYTHON,
+            JAVASCRIPT
         }
     }
 }
